@@ -183,7 +183,7 @@ def package(args):
         for path in sorted(bundle.rglob('*')):
             if path.is_file():
                 zipped.write(path, str(path.relative_to(dist)))
-    report = {'git_head': os.environ.get('GITHUB_SHA', 'local-build'), 'artifact': zip_path.name, 'bytes': zip_path.stat().st_size, 'sha256': digest(zip_path),
+    report = {'git_head': os.environ.get('GITHUB_SHA', 'local-build'), 'artifact': zip_path.name, 'portable_zip_bytes': zip_path.stat().st_size, 'portable_zip_sha256': digest(zip_path),
               'python': manifest['python']['version'], 'ocrmypdf': '17.4.0', 'tesseract': manifest['tesseract']['version'],
               'languages': ['rus', 'eng', 'osd'], 'runtime_smoke': 'PASS'}
     (dist / 'build-report.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')

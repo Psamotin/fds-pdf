@@ -132,7 +132,10 @@ Windows workflow `.github/workflows/fds-windows-build.yml` дополнител�
 4. Проверяет версии, модели, import и searchable PDF на синтетическом скане;
    SHA-256 исходного PDF должен остаться прежним.
 5. Проверяет ProductVersion exe и Tesseract; только затем загружает
-   `FDS-PDF-0.2.0-fds.1-rc1-windows-x64` (ZIP и build-report.json с размером/hash).
+   `FDS-PDF-0.2.0-fds.1-rc1-windows-x64`: ZIP Actions содержит папку комплекта
+   и build-report.json, без вложенного ZIP. Размер/digest загруженного artifact
+   записываются в summary; portable_zip_* в report относятся к отдельному
+   архиву, созданному на runner (для возможного prerelease, не публикуется).
 6. При push этой ветки создаёт/обновляет draft PR в main после успешной сборки,
    без merge. Для этого необходима настройка GitHub, разрешающая Actions
    создавать PR; запрет этой настройки не отменяет уже собранный artifact.

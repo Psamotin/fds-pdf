@@ -21,6 +21,7 @@ concurrency:
 
 permissions:
   contents: read
+  actions: read
 
 env:
   FDS_VERSION: 0.2.0-fds.1-rc1
@@ -44,6 +45,9 @@ jobs:
         with:
           toolchain: 1.95.0
           components: rustfmt
+
+      - name: Cache Rust build dependencies
+        uses: Swatinem/rust-cache@v2
 
       - name: Check format and product version
         shell: pwsh
@@ -85,11 +89,26 @@ jobs:
         with:
           name: FDS-PDF-${{ env.FDS_VERSION }}-windows-x64
           path: |
-            dist/FDS-PDF-${{ env.FDS_VERSION }}-windows-x64.zip
+            dist/FDS-PDF-${{ env.FDS_VERSION }}-windows-x64/
             dist/build-report.json
           if-no-files-found: error
-          compression-level: 0
+          compression-level: 6
           retention-days: 30
+
+      - name: Record uploaded artifact size and digest
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: artifact } = await github.rest.actions.getArtifact({
+              ...context.repo, artifact_id: Number('${{ steps.upload.outputs.artifact-id }}')
+            });
+            await core.summary.addCodeBlock(JSON.stringify({
+              git_head: context.sha,
+              artifact_name: artifact.name,
+              artifact_size_bytes: artifact.size_in_bytes,
+              artifact_digest: artifact.digest,
+              artifact_url: '${{ steps.upload.outputs.artifact-url }}'
+            }, null, 2), 'json').write();
 
   review-pr:
     needs: windows-x64
