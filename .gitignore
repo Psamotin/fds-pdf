@@ -9,3 +9,4 @@ plan/
 /assets/models
 
 /.ocr-build-cache
+/packaging/fds/__pycache__/
