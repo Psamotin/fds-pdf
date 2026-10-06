@@ -138,6 +138,7 @@ def package(args):
             '--require-hashes', '--only-binary=:all:', '--no-deps', '--disable-pip-version-check',
             '-r', REPO / 'packaging/fds/requirements-windows.lock')
         run(python / 'python.exe', '-I', '-m', 'pip', 'check')
+        copy(REPO / 'packaging/fds/sitecustomize.py', python / 'Lib/site-packages/sitecustomize.py')
         archive = fetch(manifest['tesseract'], cache)
         extracted = work / 'tesseract'
         run(sevenzip, 'x', '-y', f'-o{extracted}', archive, stdout=subprocess.DEVNULL)
@@ -170,7 +171,8 @@ def package(args):
     moved = dist / 'Проверка переносимости ФДС ПДФ' / NAME
     moved.parent.mkdir(parents=True, exist_ok=True)
     shutil.move(bundle, moved)
-    run(moved / 'OCR/Python/python.exe', '-I', REPO / 'packaging/fds/smoke.py', moved)
+    smoke_environment = dict(os.environ, FDS_OCR_HIDE_CHILDREN='1')
+    run(moved / 'OCR/Python/python.exe', '-I', REPO / 'packaging/fds/smoke.py', moved, env=smoke_environment)
     shutil.move(moved, bundle)
     moved.parent.rmdir()
     inventory = {str(path.relative_to(bundle)).replace('\\', '/'): {'bytes': path.stat().st_size, 'sha256': digest(path)}
@@ -181,7 +183,7 @@ def package(args):
         for path in sorted(bundle.rglob('*')):
             if path.is_file():
                 zipped.write(path, str(path.relative_to(dist)))
-    report = {'artifact': zip_path.name, 'bytes': zip_path.stat().st_size, 'sha256': digest(zip_path),
+    report = {'git_head': os.environ.get('GITHUB_SHA', 'local-build'), 'artifact': zip_path.name, 'bytes': zip_path.stat().st_size, 'sha256': digest(zip_path),
               'python': manifest['python']['version'], 'ocrmypdf': '17.4.0', 'tesseract': manifest['tesseract']['version'],
               'languages': ['rus', 'eng', 'osd'], 'runtime_smoke': 'PASS'}
     (dist / 'build-report.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')

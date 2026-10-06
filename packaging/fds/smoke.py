@@ -13,6 +13,8 @@ tess = bundle / 'OCR/Tesseract-OCR/tesseract.exe'
 assert Path(sys.executable).resolve() == python, 'Smoke must use bundled interpreter'
 assert sys.version_info[:3] == (3, 13, 15), sys.version
 assert sys.flags.isolated, 'Python must be isolated'
+import _winapi
+assert getattr(_winapi, '_fds_hidden_children', False), 'FDS child-process policy was not loaded'
 import ocrmypdf
 assert ocrmypdf.__version__ == '17.4.0', ocrmypdf.__version__
 manifest = json.loads((Path(__file__).parent / 'runtime-lock.json').read_text())
@@ -36,6 +38,12 @@ def run(*args):
         raise RuntimeError(f'Runtime smoke failed ({result.returncode}): {result.stderr}')
     return result.stdout + result.stderr
 
+# A console-subsystem Python child is launched with default flags here. The
+# runtime policy must still give it no console (including nested subprocesses).
+console_probe = "import ctypes,subprocess,sys; assert not ctypes.windll.kernel32.GetConsoleWindow(); subprocess.run([sys.executable,'-I','-c','import ctypes; assert not ctypes.windll.kernel32.GetConsoleWindow()'],check=True)"
+probe = subprocess.run([str(python), '-I', '-c', console_probe], env=env, capture_output=True,
+                       timeout=30, creationflags=0)
+assert probe.returncode == 0, f'Hidden child policy failed: {probe.stderr!r}'
 assert '3.13.15' in run(python, '--version')
 assert '17.4.0' in run(python, '-I', '-m', 'ocrmypdf', '--version')
 assert 'tesseract 5.5.3' in run(tess, '--version').lower()

@@ -70,7 +70,7 @@ impl Runtime {
         })
     }
     pub fn check_files(&self) -> Result<(), Failure> {
-        let mut required = vec![self.python.clone(), self.tesseract.clone()];
+        let mut required = vec![self.python.clone(), self.tesseract.clone(), self.root.join("Python/Lib/site-packages/sitecustomize.py")];
         required.extend(["rus", "eng", "osd"].map(|language| self.tessdata.join(format!("{language}.traineddata"))));
         for path in required {
             let metadata = std::fs::metadata(&path).map_err(|e| Failure::new(FailureKind::Runtime, format!("{}: {e}", path.display())))?;
@@ -91,12 +91,14 @@ impl Runtime {
             ("TESSDATA_PREFIX".into(), self.tessdata.as_os_str().to_owned()),
             ("PYTHONNOUSERSITE".into(), "1".into()),
             ("PYTHONUTF8".into(), "1".into()),
+            ("FDS_OCR_HIDE_CHILDREN".into(), "1".into()),
         ])
     }
     fn spec(&self, program: PathBuf, arguments: Vec<OsString>) -> Result<CommandSpec, Failure> {
         Ok(CommandSpec {
             program,
             arguments,
+            working_directory: Some(self.root.join("Tesseract-OCR")),
             environment: self.environment(std::env::var_os("PATH"))?,
             removed_environment: vec!["PYTHONPATH".into(), "PYTHONHOME".into()],
         })
@@ -125,7 +127,7 @@ impl Runtime {
             vec![
                 "-I".into(),
                 "-c".into(),
-                "import sys, ocrmypdf; assert sys.version_info[:3] == (3,13,15); assert ocrmypdf.__version__ == '17.4.0'".into(),
+                "import sys, ocrmypdf; assert sys.version_info[:3] == (3,13,15); assert ocrmypdf.__version__ == '17.4.0'; import _winapi; assert getattr(_winapi, '_fds_hidden_children', False)".into(),
             ],
         )?;
         execute(&python, &cancelled, Some(Duration::from_secs(30))).map_err(|e| Failure::new(FailureKind::Runtime, e.details))?;
@@ -160,12 +162,16 @@ impl Default for Options {
 pub struct CommandSpec {
     pub program: PathBuf,
     pub arguments: Vec<OsString>,
+    pub working_directory: Option<PathBuf>,
     pub environment: Vec<(OsString, OsString)>,
     pub removed_environment: Vec<OsString>,
 }
 impl CommandSpec {
     pub fn command(&self) -> Command {
         let mut command = Command::new(&self.program);
+        if let Some(directory) = &self.working_directory {
+            command.current_dir(directory);
+        }
         command.args(&self.arguments).envs(self.environment.iter().cloned());
         for key in &self.removed_environment {
             command.env_remove(key);
@@ -347,6 +353,7 @@ mod tests {
         let before = std::env::var_os("PATH");
         let spec =
             runtime.command_spec(&folder.path().join("input scan.pdf"), &folder.path().join("input scan_OCR.pdf"), Options::default()).unwrap();
+        assert_eq!(spec.working_directory.as_ref().unwrap(), &runtime.root.join("Tesseract-OCR"));
         let args: Vec<_> = spec.arguments.iter().map(|s| s.to_string_lossy().into_owned()).collect();
         assert_eq!(
             &args[..15],
@@ -370,6 +377,7 @@ mod tests {
         );
         assert!(args[15].ends_with("input scan.pdf") && args[16].ends_with("input scan_OCR.pdf"));
         assert_eq!(std::env::var_os("PATH"), before);
+        assert_eq!(spec.environment.iter().find(|(k, _)| k == "FDS_OCR_HIDE_CHILDREN").unwrap().1, "1");
         assert!(spec.removed_environment.contains(&OsString::from("PYTHONPATH")));
         let path = spec.environment.iter().find(|(k, _)| k == "PATH").unwrap().1.clone();
         let paths: Vec<_> = std::env::split_paths(&path).collect();
@@ -405,6 +413,7 @@ mod tests {
         let spec = |script: &str| CommandSpec {
             program: PathBuf::from("/bin/sh"),
             arguments: vec!["-c".into(), script.into()],
+            working_directory: None,
             environment: vec![],
             removed_environment: vec![],
         };

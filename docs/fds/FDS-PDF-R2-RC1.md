@@ -57,7 +57,13 @@ python.exe -I -m ocrmypdf --language rus+eng --mode skip --rotate-pages --deskew
 
 `-I` и относительный `python313._pth` изолируют Python. PATH и TESSDATA_PREFIX
 задаются только дочернему процессу; глобальное окружение не меняется.
-CREATE_NO_WINDOW скрывает дочерние консоли. Безопасная библиотека `win32job`
+CREATE_NO_WINDOW скрывает непосредственные дочерние консоли. Дополнительный
+`sitecustomize.py` в закреплённом Python runtime включает этот флаг для
+_CreateProcess дочерних процессов Python, включая Tesseract и multiprocessing;
+сам флаг не наследуется автоматически. Политика активна только при
+FDS_OCR_HIDE_CHILDREN=1 в окружении OCR. Исходники OCRmyPDF не изменяются.
+Windows smoke проверяет загрузку политики и отсутствие консоли у вложенного
+процесса с исходными creationflags=0. Безопасная библиотека `win32job`
 объединяет Windows процессы в Job Object с kill-on-close, чтобы отмена
 завершала весь OCR процесс вместе с дочерними workers.
 
