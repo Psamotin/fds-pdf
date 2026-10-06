@@ -4,6 +4,7 @@ use std::process::ExitCode;
 
 mod assets;
 mod demo_pdf;
+mod fds_icon;
 mod fuzz;
 mod gates;
 mod layers;
@@ -15,6 +16,7 @@ type Command = fn(&[String]) -> anyhow::Result<()>;
 
 /// Every subcommand: name, one-line summary, entry point.
 const COMMANDS: &[(&str, &str, Command)] = &[
+    ("fds-icon", "Generate Windows ICO and window PNG from the approved FDS source (--check verifies)", fds_icon::run),
     ("version", "Print the workspace version, or `version set X.Y.Z[-pre]` to change it and refresh Cargo.lock", version_cmd),
     ("layers", "Enforce the crate dependency layering (plan/architecture.md §3)", gates::layers),
     ("wasm", "cargo check --target wasm32-unknown-unknown for every crate below L8", gates::wasm),

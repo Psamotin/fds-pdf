@@ -24,7 +24,7 @@ fn russian_is_default_and_home_chrome_and_tools_are_localized() {
     let mut h = harness(&[]);
     assert_eq!(h.state().language, Language::Ru);
     assert_eq!(PRODUCT_NAME, "ФДС ПДФ");
-    assert_eq!(PRODUCT_VERSION, "0.2.0-fds.1");
+    assert_eq!(PRODUCT_VERSION, "0.2.0-fds.1-rc1");
     for label in ["Открыть файл", "Недавние документы", "КОНФИДЕНЦИАЛЬНОСТЬ", "Чтение", "Редактирование", "Конвертация", "Подпись"]
     {
         h.get_by_label(label);

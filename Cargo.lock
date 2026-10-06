@@ -3767,7 +3767,7 @@ dependencies = [
 
 [[package]]
 name = "printcraft"
-version = "0.2.0-fds.1"
+version = "0.2.0-fds.1-rc1"
 dependencies = [
  "eframe",
  "egui",
@@ -6674,6 +6674,7 @@ name = "xtask"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "image",
  "lopdf",
  "png 0.18.1",
  "serde",

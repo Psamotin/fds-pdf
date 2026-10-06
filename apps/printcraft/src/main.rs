@@ -24,8 +24,7 @@ mod updates;
 /// Freedesktop app id: the `.desktop` file name and the hicolor icon name.
 const APP_ID: &str = "ai.storyteller.printcraft";
 
-// FDS icon integration is documented in assets/fds-pdf/README.md.
-// Until the approved corporate icon is supplied, use the operating system's neutral icon.
+const FDS_ICON_PNG: &[u8] = include_bytes!("../../../assets/fds-pdf/fds-pdf-window.png");
 
 fn main() -> eframe::Result {
     // Last-resort guard (AGENTS.md §4): commands, edits, opens and saves catch panics and report
@@ -58,13 +57,15 @@ fn main() -> eframe::Result {
     let integrated = cfg!(target_os = "macos");
     let mut viewport = egui::ViewportBuilder::default()
         .with_title(printcraft_ui_egui::i18n::PRODUCT_NAME)
-        // An explicit empty icon disables eframe's own default logo too.
-        .with_icon(egui::IconData::default())
         .with_inner_size([1440.0, 920.0])
         .with_min_inner_size([820.0, 520.0])
         .with_drag_and_drop(true)
         // Wayland app id: matches packaging/linux/ai.storyteller.printcraft.desktop.
         .with_app_id(APP_ID);
+    match eframe::icon_data::from_png_bytes(FDS_ICON_PNG) {
+        Ok(icon) => viewport = viewport.with_icon(icon),
+        Err(error) => eprintln!("FDS-PDF: window icon: {error}"),
+    }
     if integrated {
         viewport = viewport.with_fullsize_content_view(true).with_titlebar_shown(false).with_title_shown(false);
     }

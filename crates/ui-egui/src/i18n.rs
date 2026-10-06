@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::sync::LazyLock;
 
 pub const PRODUCT_NAME: &str = "ФДС ПДФ";
-pub const PRODUCT_VERSION: &str = "0.2.0-fds.1";
+pub const PRODUCT_VERSION: &str = "0.2.0-fds.1-rc1";
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "lowercase")]
