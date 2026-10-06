@@ -15,12 +15,20 @@ on:
       - 'Cargo.lock'
       - '.github/workflows/fds-windows-build.yml'
 
+concurrency:
+  group: fds-windows-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
 env:
   FDS_VERSION: 0.2.0-fds.1-rc1
   PRINTCRAFT_REQUIRE_WINRES: '1'
+  CARGO_INCREMENTAL: '0'
+  CARGO_PROFILE_DEV_DEBUG: '0'
+  CARGO_PROFILE_TEST_DEBUG: '0'
+  CARGO_BUILD_JOBS: '2'
 
 jobs:
   windows-x64:

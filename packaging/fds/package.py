@@ -195,4 +195,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--dist', type=Path, default=REPO / 'dist')
     parser.add_argument('--cache', type=Path, default=REPO / '.ocr-build-cache')
-    package(parser.parse_args())
+    try:
+        package(parser.parse_args())
+    except Exception as error:
+        message = str(error).replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+        print(f'::error title=FDS portable OCR packaging::{message}', flush=True)
+        raise
