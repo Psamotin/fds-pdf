@@ -48,6 +48,8 @@ jobs:
 
       - name: Cache Rust build dependencies
         uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
 
       - name: Check format and product version
         shell: pwsh

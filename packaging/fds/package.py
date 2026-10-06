@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -59,10 +60,10 @@ def notices_from_archive(archive, destination, sevenzip):
         root = Path(temporary)
         run(sevenzip, 'x', '-y', f'-o{root}', archive, stdout=subprocess.DEVNULL)
         # 7-Zip decompresses tar.gz/xz/lz to a tar, then extracts the tar.
-        for tar in list(root.glob('*.tar')):
+        for tar in list(root.rglob('*.tar')):
             run(sevenzip, 'x', '-y', f'-o{root / "source"}', tar, stdout=subprocess.DEVNULL)
         for path in root.rglob('*'):
-            if path.is_file() and path.name.upper().startswith(('LICENSE', 'LICENCE', 'COPYING', 'COPYRIGHT', 'NOTICE', 'AUTHORS')):
+            if path.is_file() and re.search(r'(^|[-_.])(LICENSE|LICENCE|COPYING|COPYRIGHT|NOTICE|AUTHORS)([-_.]|$)', path.name, re.IGNORECASE):
                 copy(path, destination / path.relative_to(root))
         if not destination.exists():
             raise RuntimeError(f'No licence/copyright notice found in {archive.name}')
@@ -123,6 +124,9 @@ def package(args):
             if not (python / name).is_file():
                 raise RuntimeError(f'Missing portable Python component: {name}')
         copy(python / 'LICENSE.txt', licenses / 'Python/LICENSE.txt')
+        # The Rust MSVC executable also resolves these DLLs beside itself on a clean PC.
+        for name in ['vcruntime140.dll', 'vcruntime140_1.dll']:
+            copy(python / name, bundle / name)
         wheels = cache / 'wheels'
         wheels.mkdir(exist_ok=True)
         for wheel in manifest['wheels']:
