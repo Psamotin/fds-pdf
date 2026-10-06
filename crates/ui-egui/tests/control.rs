@@ -1,6 +1,8 @@
 //! The UI control channel (M3.9): an agent can see the widget tree, click, type, press keys,
 //! run commands, change view options and take screenshots of the running app.
 
+mod support;
+
 use std::sync::{Arc, Mutex};
 
 use egui_kittest::Harness;
@@ -37,7 +39,7 @@ fn harness() -> (Harness<'static, PrintCraftApp>, ControlClient) {
     let slot: Arc<Mutex<Option<ControlClient>>> = Arc::default();
     let s = slot.clone();
     let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(move |cc| {
-        let mut app = PrintCraftApp::new();
+        let mut app = support::english_app();
         *s.lock().unwrap() = Some(app.attach_control(&cc.egui_ctx));
         app.open_bytes("doc.pdf", None, fixture(5)).unwrap();
         app

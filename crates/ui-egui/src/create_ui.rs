@@ -46,7 +46,7 @@ fn read_clipboard() -> Option<Clip> {
 fn png_from_rgba(width: usize, height: usize, rgba: &[u8]) -> Result<Vec<u8>, String> {
     let (w, h) = (u32::try_from(width).map_err(|e| e.to_string())?, u32::try_from(height).map_err(|e| e.to_string())?);
     if w == 0 || h == 0 || rgba.len() != width * height * 4 {
-        return Err("the clipboard image is empty or malformed".into());
+        return Err(crate::i18n::text("ui.the_clipboard_image_is_empty_or_malformed").into());
     }
     let mut out = Vec::new();
     let mut enc = png::Encoder::new(&mut out, w, h);
@@ -66,6 +66,7 @@ impl PrintCraftApp {
     /// Convert a non-PDF file (image, text) into a new tab. Returns `None` when `bytes` is not
     /// something Create understands (the caller then tries to open it as a PDF).
     pub(crate) fn open_converted(&mut self, name: &str, bytes: &[u8]) -> Option<Result<(), String>> {
+        let _locale = crate::i18n::scope(self.language);
         let head = &bytes[..bytes.len().min(1024)];
         if head.windows(5).any(|w| w == b"%PDF-") {
             return None;
@@ -82,9 +83,10 @@ impl PrintCraftApp {
     }
 
     fn open_created_bytes(&mut self, name: &str, created: Result<Arc<Vec<u8>>, String>) -> Result<(), String> {
+        let _locale = crate::i18n::scope(self.language);
         let bytes = created?;
         let id = self.session.open_new(name, bytes).map_err(|e| e.to_string())?;
-        let info = &self.session.get(id).ok_or("the new document could not be opened")?.info;
+        let info = &self.session.get(id).ok_or(crate::i18n::text("ui.the_new_document_could_not_be_opened"))?.info;
         self.views.push(crate::DocView::new(id, info));
         self.active = Some(self.views.len() - 1);
         Ok(())
@@ -93,6 +95,7 @@ impl PrintCraftApp {
     /// Create ▸ Clipboard: a new document from the image (one page, its size) or the text on
     /// the clipboard, as Acrobat does.
     pub(crate) fn create_from_clipboard(&mut self) {
+        let _locale = crate::i18n::scope(self.language);
         #[cfg(not(target_arch = "wasm32"))]
         let clip = read_clipboard();
         #[cfg(target_arch = "wasm32")]
@@ -100,40 +103,43 @@ impl PrintCraftApp {
         match clip {
             Some(c) => {
                 if let Err(e) = self.create_from_clip(c) {
-                    self.notify(format!("Couldn't create a PDF: {e}"));
+                    self.notify(crate::msg!(couldn_t_create_a_pdf_value, e = e));
                 }
             }
-            None => self.notify("The clipboard has no image or text"),
+            None => self.notify(crate::i18n::text("ui.the_clipboard_has_no_image_or_text")),
         }
     }
 
     /// Create a new document from clipboard contents.
     pub fn create_from_clip(&mut self, clip: Clip) -> Result<(), String> {
+        let _locale = crate::i18n::scope(self.language);
         let created = match clip {
             Clip::Image { width, height, rgba } => {
                 let png = png_from_rgba(width, height, &rgba)?;
                 self.session.create_from_images(&[("Clipboard.png".into(), png)])
             }
-            Clip::Text(t) => self.session.create_from_text("Clipboard", &t),
+            Clip::Text(t) => self.session.create_from_text(crate::i18n::text("ui.clipboard"), &t),
         };
         self.open_created_bytes("Clipboard.pdf", created.map_err(|e| e.to_string()))
     }
 
     /// Create ▸ Blank page: a new untitled US Letter document.
     pub(crate) fn create_blank(&mut self) {
+        let _locale = crate::i18n::scope(self.language);
         let created = self.session.create_blank(612.0, 792.0, 1).map_err(|e| e.to_string());
         if let Err(e) = self.open_created_bytes("Untitled.pdf", created) {
-            self.notify(format!("Couldn't create a PDF: {e}"));
+            self.notify(crate::msg!(couldn_t_create_a_pdf_value, e = e));
         }
     }
 
     /// Create ▸ Images: several images, one page each, in one new document.
     pub(crate) fn create_from_images_dialog(&mut self) {
+        let _locale = crate::i18n::scope(self.language);
         #[cfg(not(target_arch = "wasm32"))]
         {
             let Some(files) = rfd::FileDialog::new()
-                .add_filter("Images", &["png", "jpg", "jpeg", "tif", "tiff", "gif", "bmp", "jp2", "j2k", "jpx"])
-                .set_title("Choose images")
+                .add_filter(crate::i18n::text("ui.images"), &["png", "jpg", "jpeg", "tif", "tiff", "gif", "bmp", "jp2", "j2k", "jpx"])
+                .set_title(crate::i18n::text("ui.choose_images"))
                 .pick_files()
             else {
                 return;
@@ -143,7 +149,7 @@ impl PrintCraftApp {
                 match std::fs::read(&f) {
                     Ok(b) => images.push((f.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default(), b)),
                     Err(e) => {
-                        self.notify(format!("Couldn't read {}: {e}", f.display()));
+                        self.notify(crate::msg!(couldn_t_read_value_value_decf41, f.display(), e = e));
                         return;
                     }
                 }
@@ -151,24 +157,26 @@ impl PrintCraftApp {
             self.create_from_images(images);
         }
         #[cfg(target_arch = "wasm32")]
-        self.notify("On the web, open or drop an image to convert it");
+        self.notify(crate::i18n::text("ui.on_the_web_open_or_drop_an_image_to_convert_it"));
     }
 
     /// One new document from images (tests and automation call this directly).
     pub fn create_from_images(&mut self, images: Vec<(String, Vec<u8>)>) {
+        let _locale = crate::i18n::scope(self.language);
         if images.is_empty() {
             return;
         }
         let name = if images.len() == 1 { format!("{}.pdf", stem(&images[0].0)) } else { "Images.pdf".to_string() };
         let created = self.session.create_from_images(&images).map_err(|e| e.to_string());
         if let Err(e) = self.open_created_bytes(&name, created) {
-            self.notify(format!("Couldn't create a PDF: {e}"));
+            self.notify(crate::msg!(couldn_t_create_a_pdf_value, e = e));
         }
     }
 
     /// Reduce File Size: write a compacted copy with images downsampled (the open document is
     /// unchanged).
     pub(crate) fn reduce_file_size(&mut self) {
+        let _locale = crate::i18n::scope(self.language);
         let Some((_, id)) = self.active_ids() else { return };
         let result = self.session.reduced_bytes(id).map(|(b, _)| (b, String::new()));
         self.save_optimized(id, "reduced", result);
@@ -182,21 +190,25 @@ impl PrintCraftApp {
         suffix: &str,
         result: Result<(Arc<Vec<u8>>, String), printcraft_engine::EditError>,
     ) {
+        let _locale = crate::i18n::scope(self.language);
         let Some(doc) = self.session.get(id) else { return };
         let (before, name) = (doc.bytes.len(), format!("{} ({suffix}).pdf", stem(&doc.name)));
         let (bytes, detail) = match result {
             Ok(r) => r,
             Err(e) => {
-                self.notify(format!("Couldn't optimize the file: {e}"));
+                self.notify(crate::msg!(couldn_t_optimize_the_file_value, e = e));
                 return;
             }
         };
         let saved = |app: &mut PrintCraftApp, place: String| {
             let pct = 100.0 * (1.0 - bytes.len() as f64 / before.max(1) as f64);
-            app.notify(format!(
-                "Saved {place}: {} → {} ({pct:.0}% smaller){detail}",
+            app.notify(crate::msg!(
+                saved_value_value_value_value_smaller_value,
                 crate::panels::human_size(before),
-                crate::panels::human_size(bytes.len())
+                crate::panels::human_size(bytes.len()),
+                place = place,
+                pct = pct,
+                detail = detail
             ));
         };
         #[cfg(not(target_arch = "wasm32"))]
@@ -208,13 +220,13 @@ impl PrintCraftApp {
             let Some(path) = path else { return };
             match crate::editing::write_atomically(&path, &bytes) {
                 Ok(()) => saved(self, path),
-                Err(e) => self.notify(format!("Couldn't write {path}: {e}")),
+                Err(e) => self.notify(crate::msg!(couldn_t_write_value_value_29b5ba, path = path, e = e)),
             }
         }
         #[cfg(target_arch = "wasm32")]
         match crate::editing::download(&name, &bytes) {
             Ok(()) => saved(self, name),
-            Err(e) => self.notify(format!("Couldn't download {name}: {e}")),
+            Err(e) => self.notify(crate::msg!(couldn_t_download_value_value, name = name, e = e)),
         }
     }
 }

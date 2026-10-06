@@ -29,11 +29,11 @@ impl ProtectDraft {
     /// Why Apply is disabled, if it is.
     pub fn problem(&self) -> Option<&'static str> {
         if self.password.is_empty() {
-            Some("Type a password.")
+            Some(crate::i18n::text("ui.type_a_password"))
         } else if self.password != self.confirm {
-            Some("The passwords don't match.")
+            Some(crate::i18n::text("ui.the_passwords_don_t_match"))
         } else if self.protection.algorithm != printcraft_engine::Algorithm::Aes256 && !self.password.chars().all(|c| (' '..='~').contains(&c)) {
-            Some("This compatibility level supports only plain ASCII passwords.")
+            Some(crate::i18n::text("ui.this_compatibility_level_supports_only_plain_ascii_passwords"))
         } else {
             None
         }
@@ -66,11 +66,11 @@ pub fn strength(pw: &str) -> (&'static str, Color32) {
     .count();
     let n = pw.chars().count();
     if n >= 12 && classes >= 3 {
-        ("Strong", Color32::from_rgb(0x2D, 0x9D, 0x5B))
+        (crate::i18n::text("ui.strong"), Color32::from_rgb(0x2D, 0x9D, 0x5B))
     } else if n >= 8 && classes >= 2 {
-        ("Medium", Color32::from_rgb(0xE8, 0x8A, 0x1A))
+        (crate::i18n::text("ui.medium"), Color32::from_rgb(0xE8, 0x8A, 0x1A))
     } else {
-        ("Weak", Color32::from_rgb(0xD3, 0x2F, 0x2F))
+        (crate::i18n::text("ui.weak"), Color32::from_rgb(0xD3, 0x2F, 0x2F))
     }
 }
 
@@ -93,16 +93,16 @@ fn radio(ui: &mut egui::Ui, t: &Tokens, on: bool, label: &str) -> egui::Response
 pub(crate) fn body(ui: &mut egui::Ui, app: &mut PrintCraftApp, t: &Tokens) -> (bool, bool) {
     use printcraft_engine::Algorithm as A;
     let d = &mut app.protect_draft;
-    ui.label(egui::RichText::new("Protect Using Password").font(theme::semibold(18.0)));
+    ui.label(egui::RichText::new(crate::i18n::text("ui.protect_using_password_883cf3")).font(theme::semibold(18.0)));
     ui.add_space(4.0);
     ui.separator();
     ui.add_space(6.0);
-    ui.label("Requires user to enter a password for:");
+    ui.label(crate::i18n::text("ui.requires_user_to_enter_a_password_for"));
     ui.add_space(4.0);
-    if radio(ui, t, d.viewing, "Viewing").clicked() {
+    if radio(ui, t, d.viewing, crate::i18n::text("ui.viewing")).clicked() {
         d.viewing = true;
     }
-    if radio(ui, t, !d.viewing, "Editing").clicked() {
+    if radio(ui, t, !d.viewing, crate::i18n::text("ui.editing")).clicked() {
         d.viewing = false;
     }
     ui.add_space(10.0);
@@ -118,29 +118,32 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PrintCraftApp, t: &Tokens) -> (b
             })
             .inner
     };
-    let r = field(ui, "Type Password", &mut d.password, "protect-pw");
+    let r = field(ui, crate::i18n::text("ui.type_password"), &mut d.password, "protect-pw");
     if r.changed() || !d.password.is_empty() {
         let (s, c) = strength(&d.password);
         if !d.password.is_empty() {
-            ui.label(egui::RichText::new(format!("Strength: {s}")).font(theme::medium(11.5)).color(c));
+            ui.label(egui::RichText::new(crate::msg!(strength_value, s = s)).font(theme::medium(11.5)).color(c));
         }
     }
     ui.add_space(6.0);
-    field(ui, "Re-type Password", &mut d.confirm, "protect-pw2");
+    field(ui, crate::i18n::text("ui.re_type_password"), &mut d.confirm, "protect-pw2");
     ui.add_space(6.0);
     let chevron = if d.advanced { "⌃" } else { "⌄" };
-    if ui.add(egui::Button::new(egui::RichText::new(format!("Advanced Options {chevron}")).font(theme::semibold(13.0))).frame(false)).clicked() {
+    if ui
+        .add(egui::Button::new(egui::RichText::new(crate::msg!(advanced_options_value, chevron = chevron)).font(theme::semibold(13.0))).frame(false))
+        .clicked()
+    {
         d.advanced = !d.advanced;
     }
     if d.advanced {
         let p = &mut d.protection;
         egui::Grid::new("protect-advanced").num_columns(2).spacing([12.0, 8.0]).show(ui, |ui| {
-            ui.label("Compatibility");
+            ui.label(crate::i18n::text("ui.compatibility"));
             let algos = [
-                (A::Aes256, "Acrobat X and later (256-bit AES)"),
-                (A::Aes128, "Acrobat 7.0 and later (128-bit AES)"),
-                (A::Rc4_128, "Acrobat 5.0 and later (128-bit RC4)"),
-                (A::Rc4_40, "Acrobat 3.0 and later (40-bit RC4)"),
+                (A::Aes256, crate::i18n::text("ui.acrobat_x_and_later_256_bit_aes")),
+                (A::Aes128, crate::i18n::text("ui.acrobat_7_0_and_later_128_bit_aes")),
+                (A::Rc4_128, crate::i18n::text("ui.acrobat_5_0_and_later_128_bit_rc4")),
+                (A::Rc4_40, crate::i18n::text("ui.acrobat_3_0_and_later_40_bit_rc4")),
             ];
             let cur = algos.iter().find(|(a, _)| *a == p.algorithm).map_or(algos[0].1, |(_, l)| *l);
             egui::ComboBox::from_id_salt("protect-algo").width(300.0).selected_text(cur).show_ui(ui, |ui| {
@@ -149,34 +152,38 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PrintCraftApp, t: &Tokens) -> (b
                 }
             });
             ui.end_row();
-            ui.label("Encrypt");
+            ui.label(crate::i18n::text("ui.encrypt"));
             ui.vertical(|ui| {
-                ui.radio_value(&mut p.encrypt_metadata, true, "All document contents");
+                ui.radio_value(&mut p.encrypt_metadata, true, crate::i18n::text("ui.all_document_contents"));
                 // Unencrypted metadata needs crypt filters (Acrobat 6.0 and later).
                 ui.add_enabled_ui(p.algorithm != A::Rc4_40 && p.algorithm != A::Rc4_128, |ui| {
-                    ui.radio_value(&mut p.encrypt_metadata, false, "All document contents except metadata");
+                    ui.radio_value(&mut p.encrypt_metadata, false, crate::i18n::text("ui.all_document_contents_except_metadata"));
                 });
             });
             ui.end_row();
             if !d.viewing {
-                ui.label("Printing allowed");
-                let opts = [(Printing::None, "None"), (Printing::Low, "Low Resolution (150 dpi)"), (Printing::High, "High Resolution")];
-                let cur = opts.iter().find(|(o, _)| *o == p.printing).map_or("High Resolution", |(_, l)| *l);
+                ui.label(crate::i18n::text("ui.printing_allowed"));
+                let opts = [
+                    (Printing::None, crate::i18n::text("ui.none")),
+                    (Printing::Low, crate::i18n::text("ui.low_resolution_150_dpi")),
+                    (Printing::High, crate::i18n::text("ui.high_resolution_d95217")),
+                ];
+                let cur = opts.iter().find(|(o, _)| *o == p.printing).map_or(crate::i18n::text("ui.high_resolution_d95217"), |(_, l)| *l);
                 egui::ComboBox::from_id_salt("protect-print").width(300.0).selected_text(cur).show_ui(ui, |ui| {
                     for (o, l) in opts {
                         ui.selectable_value(&mut p.printing, o, l);
                     }
                 });
                 ui.end_row();
-                ui.label("Changes allowed");
+                ui.label(crate::i18n::text("ui.changes_allowed"));
                 let opts = [
-                    (Changes::None, "None"),
-                    (Changes::Pages, "Inserting, deleting, and rotating pages"),
-                    (Changes::FillSign, "Filling in form fields and signing existing signature fields"),
-                    (Changes::CommentFillSign, "Commenting, filling in form fields, and signing existing signature fields"),
-                    (Changes::AnyExceptExtract, "Any except extracting pages"),
+                    (Changes::None, crate::i18n::text("ui.none")),
+                    (Changes::Pages, crate::i18n::text("ui.inserting_deleting_and_rotating_pages")),
+                    (Changes::FillSign, crate::i18n::text("ui.filling_in_form_fields_and_signing_existing_signature_fields")),
+                    (Changes::CommentFillSign, crate::i18n::text("ui.commenting_filling_in_form_fields_and_signing_existing_signature_fields")),
+                    (Changes::AnyExceptExtract, crate::i18n::text("ui.any_except_extracting_pages")),
                 ];
-                let cur = opts.iter().find(|(o, _)| *o == p.changes).map_or("None", |(_, l)| *l);
+                let cur = opts.iter().find(|(o, _)| *o == p.changes).map_or(crate::i18n::text("ui.none"), |(_, l)| *l);
                 egui::ComboBox::from_id_salt("protect-changes").width(300.0).selected_text(cur).show_ui(ui, |ui| {
                     for (o, l) in opts {
                         ui.selectable_value(&mut p.changes, o, l);
@@ -185,8 +192,8 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PrintCraftApp, t: &Tokens) -> (b
                 ui.end_row();
                 ui.label("");
                 ui.vertical(|ui| {
-                    ui.checkbox(&mut p.copy, "Enable copying of text, images, and other content");
-                    ui.checkbox(&mut p.accessibility, "Enable text access for screen reader devices for the visually impaired");
+                    ui.checkbox(&mut p.copy, crate::i18n::text("ui.enable_copying_of_text_images_and_other_content"));
+                    ui.checkbox(&mut p.accessibility, crate::i18n::text("ui.enable_text_access_for_screen_reader_devices_for_the_visually_impaired"));
                 });
                 ui.end_row();
             }
@@ -201,9 +208,11 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PrintCraftApp, t: &Tokens) -> (b
     }
     ui.label(
         egui::RichText::new(if d.viewing {
-            "Anyone opening the document will need this password. It's applied when you save."
+            crate::i18n::text("ui.anyone_opening_the_document_will_need_this_password_it_s_applied_when_you_save")
         } else {
-            "The document opens without a password; this password is needed to change the restrictions. It's applied when you save."
+            crate::i18n::text(
+                "ui.the_document_opens_without_a_password_this_password_is_needed_to_change_the_restrictions_it_s_applied_when_you_save",
+            )
         })
         .color(t.text_faint)
         .font(theme::regular(11.5)),
@@ -212,10 +221,10 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PrintCraftApp, t: &Tokens) -> (b
     let (mut apply, mut cancel) = (false, false);
     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
         let ok = d.problem().is_none();
-        if ui.add_enabled_ui(ok, |ui| widgets::pill_button(ui, "Apply", true)).inner.clicked() {
+        if ui.add_enabled_ui(ok, |ui| widgets::pill_button(ui, crate::i18n::text("ui.apply"), true)).inner.clicked() {
             apply = true;
         }
-        if widgets::pill_button(ui, "Cancel", false).clicked() {
+        if widgets::pill_button(ui, crate::i18n::text("ui.cancel"), false).clicked() {
             cancel = true;
         }
     });
@@ -228,6 +237,7 @@ mod tests {
 
     #[test]
     fn drafts_validate_and_map_to_the_right_password() {
+        let _locale = crate::i18n::scope(crate::i18n::Language::En);
         let mut d = ProtectDraft::default();
         assert!(d.problem().is_some());
         d.password = "abc".into();

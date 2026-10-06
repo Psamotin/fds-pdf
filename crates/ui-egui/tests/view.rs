@@ -1,5 +1,7 @@
 //! Page layouts, zoom modes and link navigation, checked by where pages land on screen.
 
+mod support;
+
 use egui::{Key, Modifiers};
 use egui_kittest::Harness;
 use printcraft_ui_egui::PrintCraftApp;
@@ -17,7 +19,7 @@ trailer << /Root 1 0 R >>
 
 fn harness(options: &'static [(&'static str, &'static str)]) -> Harness<'static, PrintCraftApp> {
     let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(move |_cc| {
-        let mut app = PrintCraftApp::new();
+        let mut app = support::english_app();
         app.open_bytes("pages.pdf", None, PAGES.to_vec()).expect("opens");
         app.set_option("left", "closed").unwrap();
         app.set_option("panel", "none").unwrap();
@@ -121,7 +123,7 @@ trailer << /Root 1 0 R >>
 
 fn form_harness() -> Harness<'static, PrintCraftApp> {
     let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(|_cc| {
-        let mut app = PrintCraftApp::new();
+        let mut app = support::english_app();
         app.open_bytes("form.pdf", None, FORM.to_vec()).expect("opens");
         app.set_option("left", "closed").unwrap();
         app

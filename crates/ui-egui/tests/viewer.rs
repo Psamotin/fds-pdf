@@ -1,6 +1,8 @@
 //! Viewer conveniences: close all, revert, fit height, view history, select all, find options,
 //! cover page.
 
+mod support;
+
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
 use printcraft_ui_egui::{Dialog, PrintCraftApp};
@@ -33,7 +35,7 @@ fn fixture(n: usize) -> Vec<u8> {
 
 fn harness() -> Harness<'static, PrintCraftApp> {
     let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(|_cc| {
-        let mut app = PrintCraftApp::new();
+        let mut app = support::english_app();
         app.open_bytes("a.pdf", None, fixture(5)).unwrap();
         app.open_bytes("b.pdf", None, fixture(2)).unwrap();
         app
@@ -183,7 +185,7 @@ trailer << /Root 1 0 R >>
 %%EOF"
         .to_vec();
     let mut h = Harness::builder().with_size(egui::vec2(1200.0, 800.0)).build_eframe(move |_cc| {
-        let mut app = PrintCraftApp::new();
+        let mut app = support::english_app();
         app.open_bytes("damaged.pdf", None, damaged.clone()).unwrap();
         app
     });
@@ -220,7 +222,7 @@ fn initial_view_is_edited_and_honoured_on_open() {
     assert_eq!(s.session.get(id).unwrap().can_undo(), Some("Change document properties"));
     // Opening the saved file follows it.
     let bytes = s.session.save_bytes(id).unwrap();
-    let mut app = PrintCraftApp::new();
+    let mut app = support::english_app();
     app.open_bytes("again.pdf", None, bytes.to_vec()).unwrap();
     let view = &app.views[0];
     assert_eq!((view.current, view.cover, app.right), (1, true, Some(printcraft_ui_egui::RightPanel::Bookmarks)));
@@ -281,11 +283,11 @@ fn fit_visible_zooms_to_the_content_width() {
 }
 
 #[test]
-fn tab_and_window_show_the_document_title_when_asked() {
+fn tab_shows_document_title_and_window_keeps_corporate_name() {
     use printcraft_engine::Edit;
     let mut h = harness();
     h.run_steps(2);
-    assert_eq!(h.state().window_title, "b.pdf — PrintCraft");
+    assert_eq!(h.state().window_title, "ФДС ПДФ");
     {
         let s = h.state_mut();
         let id = s.views[s.active.unwrap()].id;
@@ -295,7 +297,7 @@ fn tab_and_window_show_the_document_title_when_asked() {
         s.session.apply(id, Edit::SetInitialView(Box::new(v))).unwrap();
     }
     h.run_steps(2);
-    assert_eq!(h.state().window_title, "Quarterly report — PrintCraft");
+    assert_eq!(h.state().window_title, "ФДС ПДФ");
     h.get_by_label_contains("Quarterly report");
 }
 

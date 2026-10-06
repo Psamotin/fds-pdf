@@ -159,7 +159,7 @@ pub(crate) fn page_input(ui: &egui::Ui, resp: &egui::Response, xf: &PageXform, p
 
 /// Where new digital IDs are saved: next to the recovery folder (`…/PrintCraft/Digital IDs`).
 fn id_dir() -> Option<PathBuf> {
-    crate::recovery::RecoveryStore::default_dir().and_then(|d| d.parent().map(|p| p.join("Digital IDs")))
+    crate::recovery::RecoveryStore::default_dir().and_then(|d| d.parent().map(|p| p.join(crate::i18n::text("ui.digital_ids"))))
 }
 
 /// A Keychain identity by its `keychain:` reference.
@@ -167,7 +167,7 @@ fn keychain_id(reference: &str) -> Result<DigitalId, String> {
     #[cfg(target_os = "macos")]
     return sign::keychain::find(reference).map_err(|e| e.to_string());
     #[cfg(not(target_os = "macos"))]
-    Err(format!("{reference}: Keychain identities are only available on macOS"))
+    Err(crate::msg!(value_keychain_identities_are_only_available_on_macos, reference = reference))
 }
 
 pub fn entry_for(path: &str, c: &Certificate) -> DigitalIdEntry {
@@ -183,6 +183,7 @@ pub fn entry_for(path: &str, c: &Certificate) -> DigitalIdEntry {
 impl PrintCraftApp {
     /// Start signing: the rectangle (or field) is known; show Sign with a Digital ID.
     pub fn start_signing(&mut self, page: usize, rect: Option<[f64; 4]>, field: Option<String>, certify: Option<u8>) {
+        let _locale = crate::i18n::scope(self.language);
         self.refresh_keychain_ids();
         self.sign_draft = Some(SignDraft::new(page, rect, field, certify, self.digital_ids.len()));
         self.dialog = Some(crate::Dialog::Sign);
@@ -190,6 +191,7 @@ impl PrintCraftApp {
 
     /// List the macOS Keychain's signing identities (after the file-based IDs).
     fn refresh_keychain_ids(&mut self) {
+        let _locale = crate::i18n::scope(self.language);
         self.digital_ids.retain(|e| !e.path.starts_with("keychain:"));
         #[cfg(target_os = "macos")]
         if self.keychain_ids {
@@ -199,13 +201,14 @@ impl PrintCraftApp {
                         self.digital_ids.push(entry_for(&sign::keychain::reference(&id.certificate), &id.certificate));
                     }
                 }
-                Err(e) => self.notify(format!("The Keychain's digital IDs couldn't be listed: {e}")),
+                Err(e) => self.notify(crate::msg!(the_keychain_s_digital_ids_couldn_t_be_listed_value, e = e)),
             }
         }
     }
 
     /// Add a digital ID file to the list (or select it if it's there).
     pub fn add_digital_id(&mut self, path: &str, cert: &Certificate) -> usize {
+        let _locale = crate::i18n::scope(self.language);
         if let Some(i) = self.digital_ids.iter().position(|e| e.path == path) {
             self.digital_ids[i] = entry_for(path, cert);
             return i;
@@ -217,15 +220,16 @@ impl PrintCraftApp {
     /// Configure New Digital ID ▸ Create: a self-signed ID saved as a .p12 next to the app data
     /// (or in `export_dir_override`). Returns its list index.
     fn create_digital_id(&mut self) -> Result<usize, String> {
-        let Some(d) = self.sign_draft.as_ref().map(|d| d.new_id.clone()) else { return Err("nothing to create".into()) };
+        let _locale = crate::i18n::scope(self.language);
+        let Some(d) = self.sign_draft.as_ref().map(|d| d.new_id.clone()) else { return Err(crate::i18n::text("ui.nothing_to_create").into()) };
         if d.name.trim().is_empty() {
-            return Err("Enter a name.".into());
+            return Err(crate::i18n::text("ui.enter_a_name").into());
         }
         if d.password.chars().count() < 6 {
-            return Err("The password must have at least 6 characters.".into());
+            return Err(crate::i18n::text("ui.the_password_must_have_at_least_6_characters").into());
         }
         if d.password != d.confirm {
-            return Err("The passwords do not match.".into());
+            return Err(crate::i18n::text("ui.the_passwords_do_not_match").into());
         }
         let key = match KEY_ALGORITHMS[d.key.min(KEY_ALGORITHMS.len() - 1)].1 {
             "rsa3072" => PrivateKey::generate_rsa(3072),
@@ -244,23 +248,24 @@ impl PrintCraftApp {
             Some(p) => Some(PathBuf::from(p)),
             None => id_dir(),
         }
-        .ok_or("There is no folder to save the digital ID in.")?;
+        .ok_or(crate::i18n::text("ui.there_is_no_folder_to_save_the_digital_id_in"))?;
         std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
         let stem: String = d.name.trim().chars().map(|c| if c.is_alphanumeric() || c == ' ' || c == '-' { c } else { '_' }).collect();
         let path = (1..=u64::MAX)
             .map(|i| dir.join(if i == 1 { format!("{stem}.p12") } else { format!("{stem} {i}.p12") }))
             .find(|p| !p.exists())
-            .ok_or("no free file name for the digital ID")?;
+            .ok_or(crate::i18n::text("ui.no_free_file_name_for_the_digital_id"))?;
         std::fs::write(&path, &p12).map_err(|e| e.to_string())?;
         Ok(self.add_digital_id(&path.to_string_lossy(), &cert))
     }
 
     /// Configure New Digital ID ▸ Use a Digital ID from a file.
     fn import_digital_id(&mut self) -> Result<usize, String> {
-        let Some(d) = self.sign_draft.as_ref().map(|d| d.new_id.clone()) else { return Err("nothing to import".into()) };
+        let _locale = crate::i18n::scope(self.language);
+        let Some(d) = self.sign_draft.as_ref().map(|d| d.new_id.clone()) else { return Err(crate::i18n::text("ui.nothing_to_import").into()) };
         let bytes = std::fs::read(&d.file).map_err(|e| format!("{}: {e}", d.file))?;
         let id = sign::pkcs12::open(&bytes, &d.file_password).map_err(|e| match e {
-            sign::SignError::WrongPassword => "The password is incorrect.".to_string(),
+            sign::SignError::WrongPassword => crate::i18n::text("ui.the_password_is_incorrect").to_string(),
             e => e.to_string(),
         })?;
         Ok(self.add_digital_id(&d.file, &id.certificate))
@@ -268,15 +273,16 @@ impl PrintCraftApp {
 
     /// Sign as …: open the ID, sign, save the signed file (Save As), and show it.
     fn finish_signing(&mut self) -> Result<(), String> {
-        let Some((_, doc_id)) = self.active_ids() else { return Err("no document".into()) };
-        let d = self.sign_draft.clone().ok_or("nothing to sign")?;
-        let entry = d.selected.and_then(|i| self.digital_ids.get(i)).cloned().ok_or("Choose a digital ID.")?;
+        let _locale = crate::i18n::scope(self.language);
+        let Some((_, doc_id)) = self.active_ids() else { return Err(crate::i18n::text("ui.no_document").into()) };
+        let d = self.sign_draft.clone().ok_or(crate::i18n::text("ui.nothing_to_sign"))?;
+        let entry = d.selected.and_then(|i| self.digital_ids.get(i)).cloned().ok_or(crate::i18n::text("ui.choose_a_digital_id"))?;
         let id = if entry.path.starts_with("keychain:") {
             keychain_id(&entry.path)?
         } else {
             let bytes = std::fs::read(&entry.path).map_err(|e| format!("{}: {e}", entry.path))?;
             sign::pkcs12::open(&bytes, &d.password).map_err(|e| match e {
-                sign::SignError::WrongPassword => "The password is incorrect.".to_string(),
+                sign::SignError::WrongPassword => crate::i18n::text("ui.the_password_is_incorrect").to_string(),
                 e => e.to_string(),
             })?
         };
@@ -303,18 +309,19 @@ impl PrintCraftApp {
             None => None,
         };
         let Some(path) = path else { return Err(String::new()) };
-        std::fs::write(&path, signed.as_slice()).map_err(|e| format!("Could not save: {e}"))?;
+        std::fs::write(&path, signed.as_slice()).map_err(|e| crate::msg!(could_not_save_value, e = e))?;
         self.session.mark_signed(doc_id, signed, Some(path.to_string_lossy().into_owned())).map_err(|e| e.to_string())?;
         if let Some((i, _)) = self.active_ids() {
             self.views[i].invalidate_content();
         }
         self.right = Some(crate::RightPanel::Signatures);
-        self.notify(format!("Signed and saved to {}", path.display()));
+        self.notify(crate::msg!(signed_and_saved_to_value, path.display()));
         Ok(())
     }
 
     /// Trust a certificate (Signatures panel ▸ Add to trusted certificates), revalidating.
     pub fn trust_certificate(&mut self, cert: Certificate) {
+        let _locale = crate::i18n::scope(self.language);
         let mut certs = self.session.trusted_certificates().to_vec();
         if !certs.iter().any(|c| c.raw == cert.raw) {
             certs.push(cert);
@@ -324,6 +331,7 @@ impl PrintCraftApp {
 
     /// Open saved revision `n` (1 = the oldest) of the active document as a new document.
     pub fn open_revision(&mut self, n: usize) {
+        let _locale = crate::i18n::scope(self.language);
         let Some((_, id)) = self.active_ids() else { return };
         match self.session.open_revision(id, n) {
             Ok(new) => {
@@ -331,23 +339,24 @@ impl PrintCraftApp {
                 self.views.push(DocView::new(new, &doc.info));
                 self.active = Some(self.views.len() - 1);
             }
-            Err(e) => self.notify(format!("Couldn't open revision {n}: {e}")),
+            Err(e) => self.notify(crate::msg!(couldn_t_open_revision_value_value, n = n, e = e)),
         }
     }
 
     /// Open the signed version of a signature as a new document (View signed version).
     pub fn view_signed_version(&mut self, len: usize) {
+        let _locale = crate::i18n::scope(self.language);
         let Some((_, id)) = self.active_ids() else { return };
         let Some(doc) = self.session.get(id) else { return };
         let bytes = doc.bytes[..len.min(doc.bytes.len())].to_vec();
-        let name = format!("{} (signed version)", doc.name.trim_end_matches(".pdf"));
+        let name = crate::msg!(value_signed_version, doc.name.trim_end_matches(".pdf"));
         match self.session.open(format!("{name}.pdf"), None, std::sync::Arc::new(bytes), doc.password.clone().as_deref()) {
             Ok(new) => {
                 let Some(doc) = self.session.get(new) else { return };
                 self.views.push(DocView::new(new, &doc.info));
                 self.active = Some(self.views.len() - 1);
             }
-            Err(e) => self.notify(format!("Couldn't open the signed version: {e}")),
+            Err(e) => self.notify(crate::msg!(couldn_t_open_the_signed_version_value, e = e)),
         }
     }
 }
@@ -377,8 +386,8 @@ fn error(ui: &mut egui::Ui, err: &Option<String>) {
 }
 
 fn choose(ui: &mut egui::Ui, app: &mut PrintCraftApp, t: &Tokens) -> bool {
-    title(ui, "Sign with a Digital ID");
-    ui.label("Choose the digital ID that you want to use for signing:");
+    title(ui, crate::i18n::text("ui.sign_with_a_digital_id"));
+    ui.label(crate::i18n::text("ui.choose_the_digital_id_that_you_want_to_use_for_signing"));
     ui.add_space(6.0);
     let ids = app.digital_ids.clone();
     let Some(d) = app.sign_draft.as_mut() else { return true };
@@ -398,9 +407,9 @@ fn choose(ui: &mut egui::Ui, app: &mut PrintCraftApp, t: &Tokens) -> bool {
             ui.painter().rect_filled(rect, CornerRadius::same(6), fill);
             icons::paint(ui, Rect::from_min_size(rect.min + vec2(10.0, 15.0), vec2(20.0, 20.0)), "badge-check", 18.0, t.accent);
             ui.painter().text(rect.min + vec2(40.0, 9.0), egui::Align2::LEFT_TOP, &e.name, theme::semibold(13.0), t.text);
-            let sub = format!(
-                "{}{}Issued by: {}, Expires: {}",
-                if e.path.starts_with("keychain:") { "Keychain  ·  " } else { "" },
+            let sub = crate::msg!(
+                value_value_issued_by_value_expires_value,
+                if e.path.starts_with("keychain:") { crate::i18n::text("ui.keychain") } else { "" },
                 if e.email.is_empty() { String::new() } else { format!("{}  ·  ", e.email) },
                 e.issuer,
                 e.expires
@@ -414,21 +423,21 @@ fn choose(ui: &mut egui::Ui, app: &mut PrintCraftApp, t: &Tokens) -> bool {
             }
         }
         if ids.is_empty() {
-            ui.label(egui::RichText::new("No digital IDs yet.").color(t.text_muted));
+            ui.label(egui::RichText::new(crate::i18n::text("ui.no_digital_ids_yet")).color(t.text_muted));
         }
     });
     ui.add_space(10.0);
     ui.horizontal(|ui| {
-        if widgets::pill_button(ui, "Configure New Digital ID", false).clicked() {
+        if widgets::pill_button(ui, crate::i18n::text("ui.configure_new_digital_id"), false).clicked() {
             d.step = SignStep::Configure;
             d.error = None;
         }
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-            if ui.add_enabled_ui(d.selected.is_some(), |ui| widgets::pill_button(ui, "Continue", true)).inner.clicked() {
+            if ui.add_enabled_ui(d.selected.is_some(), |ui| widgets::pill_button(ui, crate::i18n::text("ui.continue"), true)).inner.clicked() {
                 d.step = SignStep::SignAs;
                 d.error = None;
             }
-            if widgets::pill_button(ui, "Cancel", false).clicked() {
+            if widgets::pill_button(ui, crate::i18n::text("ui.cancel"), false).clicked() {
                 close = true;
             }
         });
@@ -437,62 +446,62 @@ fn choose(ui: &mut egui::Ui, app: &mut PrintCraftApp, t: &Tokens) -> bool {
 }
 
 fn configure(ui: &mut egui::Ui, app: &mut PrintCraftApp, t: &Tokens) -> bool {
-    title(ui, "Configure a Digital ID for Signing");
+    title(ui, crate::i18n::text("ui.configure_a_digital_id_for_signing"));
     let Some(d) = app.sign_draft.as_mut() else { return true };
     let mut close = false;
     let mut go = false;
-    ui.radio_value(&mut d.new_id.create, false, "Use a Digital ID from a file");
-    ui.radio_value(&mut d.new_id.create, true, "Create a new Digital ID (self-signed, saved to a password-protected file)");
+    ui.radio_value(&mut d.new_id.create, false, crate::i18n::text("ui.use_a_digital_id_from_a_file"));
+    ui.radio_value(&mut d.new_id.create, true, crate::i18n::text("ui.create_a_new_digital_id_self_signed_saved_to_a_password_protected_file"));
     ui.add_space(8.0);
     let n = &mut d.new_id;
     if n.create {
         egui::Grid::new("new-id").num_columns(2).spacing([12.0, 8.0]).show(ui, |ui| {
             for (label, value) in [
-                ("Name", &mut n.name),
-                ("Organizational Unit", &mut n.unit),
-                ("Organization Name", &mut n.organization),
-                ("Email Address", &mut n.email),
+                (crate::i18n::text("ui.name"), &mut n.name),
+                (crate::i18n::text("ui.organizational_unit"), &mut n.unit),
+                (crate::i18n::text("ui.organization_name"), &mut n.organization),
+                (crate::i18n::text("ui.email_address"), &mut n.email),
             ] {
                 let l = ui.label(label);
                 ui.add(egui::TextEdit::singleline(value).desired_width(260.0)).labelled_by(l.id);
                 ui.end_row();
             }
-            let l = ui.label("Country/Region");
+            let l = ui.label(crate::i18n::text("ui.country_region"));
             ui.add(egui::TextEdit::singleline(&mut n.country).hint_text("US").char_limit(2).desired_width(60.0)).labelled_by(l.id);
             ui.end_row();
-            ui.label("Key Algorithm");
+            ui.label(crate::i18n::text("ui.key_algorithm"));
             egui::ComboBox::from_id_salt("key-alg").selected_text(KEY_ALGORITHMS[n.key].0).show_ui(ui, |ui| {
                 for (i, (label, _)) in KEY_ALGORITHMS.iter().enumerate() {
                     ui.selectable_value(&mut n.key, i, *label);
                 }
             });
             ui.end_row();
-            let l = ui.label("Password");
+            let l = ui.label(crate::i18n::text("ui.password"));
             ui.add(egui::TextEdit::singleline(&mut n.password).password(true).desired_width(200.0)).labelled_by(l.id);
             ui.end_row();
-            let l = ui.label("Confirm Password");
+            let l = ui.label(crate::i18n::text("ui.confirm_password"));
             ui.add(egui::TextEdit::singleline(&mut n.confirm).password(true).desired_width(200.0)).labelled_by(l.id);
             ui.end_row();
         });
         ui.label(
-            egui::RichText::new("Valid for 5 years, for digital signatures. Self-signed IDs are usually not trusted by others.")
+            egui::RichText::new(crate::i18n::text("ui.valid_for_5_years_for_digital_signatures_self_signed_ids_are_usually_not_trusted_by_others"))
                 .small()
                 .color(t.text_muted),
         );
     } else {
         egui::Grid::new("id-file").num_columns(2).spacing([12.0, 8.0]).show(ui, |ui| {
-            let l = ui.label("File (.p12, .pfx)");
+            let l = ui.label(crate::i18n::text("ui.file_p12_pfx"));
             ui.horizontal(|ui| {
                 ui.add(egui::TextEdit::singleline(&mut n.file).desired_width(220.0)).labelled_by(l.id);
                 #[cfg(not(target_arch = "wasm32"))]
-                if ui.button("Browse…").clicked()
-                    && let Some(p) = rfd::FileDialog::new().add_filter("Digital ID", &["p12", "pfx"]).pick_file()
+                if ui.button(crate::i18n::text("ui.browse")).clicked()
+                    && let Some(p) = rfd::FileDialog::new().add_filter(crate::i18n::text("ui.digital_id"), &["p12", "pfx"]).pick_file()
                 {
                     n.file = p.to_string_lossy().into_owned();
                 }
             });
             ui.end_row();
-            let l = ui.label("Password");
+            let l = ui.label(crate::i18n::text("ui.password"));
             ui.add(egui::TextEdit::singleline(&mut n.file_password).password(true).desired_width(200.0)).labelled_by(l.id);
             ui.end_row();
         });
@@ -500,15 +509,16 @@ fn configure(ui: &mut egui::Ui, app: &mut PrintCraftApp, t: &Tokens) -> bool {
     ui.add_space(6.0);
     error(ui, &d.error);
     ui.horizontal(|ui| {
-        if !app.digital_ids.is_empty() && widgets::pill_button(ui, "Back", false).clicked() {
+        if !app.digital_ids.is_empty() && widgets::pill_button(ui, crate::i18n::text("ui.back"), false).clicked() {
             d.step = SignStep::Choose;
             d.error = None;
         }
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-            if widgets::pill_button(ui, if d.new_id.create { "Save" } else { "Continue" }, true).clicked() {
+            if widgets::pill_button(ui, if d.new_id.create { crate::i18n::text("ui.save") } else { crate::i18n::text("ui.continue") }, true).clicked()
+            {
                 go = true;
             }
-            if widgets::pill_button(ui, "Cancel", false).clicked() {
+            if widgets::pill_button(ui, crate::i18n::text("ui.cancel"), false).clicked() {
                 close = true;
             }
         });
@@ -544,16 +554,16 @@ fn preview(ui: &mut egui::Ui, t: &Tokens, name: &str, d: &SignDraft) {
     }
     let mut lines = Vec::new();
     if a.name {
-        lines.push(if a.labels { format!("Digitally signed by {name}") } else { name.to_string() });
+        lines.push(if a.labels { crate::msg!(digitally_signed_by_value, name = name) } else { name.to_string() });
     }
     if a.reason && !d.reason.trim().is_empty() {
-        lines.push(format!("{}{}", if a.labels { "Reason: " } else { "" }, d.reason.trim()));
+        lines.push(format!("{}{}", if a.labels { crate::i18n::text("ui.reason") } else { "" }, d.reason.trim()));
     }
     if a.location && !d.location.trim().is_empty() {
-        lines.push(format!("{}{}", if a.labels { "Location: " } else { "" }, d.location.trim()));
+        lines.push(format!("{}{}", if a.labels { crate::i18n::text("ui.location_bb9b32") } else { "" }, d.location.trim()));
     }
     if a.date {
-        lines.push(format!("{}{}", if a.labels { "Date: " } else { "" }, "(the signing time)"));
+        lines.push(format!("{}{}", if a.labels { crate::i18n::text("ui.date") } else { "" }, crate::i18n::text("ui.the_signing_time")));
     }
     let x = if a.name { inner.center().x + 6.0 } else { inner.left() };
     let galley = ui.painter().layout(lines.join("\n"), theme::regular(11.0), Color32::from_gray(0x20), inner.right() - x);
@@ -567,34 +577,37 @@ fn sign_as(ui: &mut egui::Ui, app: &mut PrintCraftApp, t: &Tokens) -> bool {
         d.step = SignStep::Choose;
         return false;
     };
-    title(ui, &format!("{} as \"{}\"", if d.certify.is_some() { "Certify" } else { "Sign" }, entry.name));
+    title(
+        ui,
+        &crate::msg!(value_as_value, if d.certify.is_some() { crate::i18n::text("ui.certify") } else { crate::i18n::text("ui.sign") }, entry.name),
+    );
     let in_keychain = entry.path.starts_with("keychain:");
     let mut close = false;
     let mut go = false;
     if d.rect.is_some() || d.field.is_some() {
-        ui.label(egui::RichText::new("Appearance").font(theme::semibold(12.5)));
+        ui.label(egui::RichText::new(crate::i18n::text("ui.appearance")).font(theme::semibold(12.5)));
         preview(ui, t, &entry.name, d);
         ui.horizontal_wrapped(|ui| {
             let a = &mut d.appearance;
-            ui.checkbox(&mut a.name, "Name");
-            ui.checkbox(&mut a.date, "Date");
-            ui.checkbox(&mut a.reason, "Reason");
-            ui.checkbox(&mut a.location, "Location");
-            ui.checkbox(&mut a.distinguished_name, "Distinguished name");
-            ui.checkbox(&mut a.labels, "Labels");
+            ui.checkbox(&mut a.name, crate::i18n::text("ui.name"));
+            ui.checkbox(&mut a.date, crate::i18n::text("ui.date_99c40a"));
+            ui.checkbox(&mut a.reason, crate::i18n::text("ui.reason_f81ab8"));
+            ui.checkbox(&mut a.location, crate::i18n::text("ui.location"));
+            ui.checkbox(&mut a.distinguished_name, crate::i18n::text("ui.distinguished_name"));
+            ui.checkbox(&mut a.labels, crate::i18n::text("ui.labels"));
         });
         ui.add_space(6.0);
     } else {
-        ui.label(egui::RichText::new("The signature will be invisible.").color(t.text_muted));
+        ui.label(egui::RichText::new(crate::i18n::text("ui.the_signature_will_be_invisible")).color(t.text_muted));
     }
     egui::Grid::new("sign-as").num_columns(2).spacing([12.0, 8.0]).show(ui, |ui| {
         if d.certify.is_some() {
-            ui.label("Permitted actions after certifying");
+            ui.label(crate::i18n::text("ui.permitted_actions_after_certifying"));
             let mut p = d.certify.unwrap_or(2);
             let label = |p: u8| match p {
-                1 => "No changes allowed",
-                3 => "Annotations, form fill-in, and digital signatures",
-                _ => "Form fill-in and digital signatures",
+                1 => crate::i18n::text("ui.no_changes_allowed"),
+                3 => crate::i18n::text("ui.annotations_form_fill_in_and_digital_signatures"),
+                _ => crate::i18n::text("ui.form_fill_in_and_digital_signatures"),
             };
             egui::ComboBox::from_id_salt("certify-p").selected_text(label(p)).width(300.0).show_ui(ui, |ui| {
                 for v in [1u8, 2, 3] {
@@ -604,19 +617,21 @@ fn sign_as(ui: &mut egui::Ui, app: &mut PrintCraftApp, t: &Tokens) -> bool {
             d.certify = Some(p);
             ui.end_row();
         }
-        let l = ui.label("Reason");
-        ui.add(egui::TextEdit::singleline(&mut d.reason).hint_text("Optional").desired_width(260.0)).labelled_by(l.id);
+        let l = ui.label(crate::i18n::text("ui.reason_f81ab8"));
+        ui.add(egui::TextEdit::singleline(&mut d.reason).hint_text(crate::i18n::text("ui.optional")).desired_width(260.0)).labelled_by(l.id);
         ui.end_row();
-        let l = ui.label("Location");
-        ui.add(egui::TextEdit::singleline(&mut d.location).hint_text("Optional").desired_width(260.0)).labelled_by(l.id);
+        let l = ui.label(crate::i18n::text("ui.location"));
+        ui.add(egui::TextEdit::singleline(&mut d.location).hint_text(crate::i18n::text("ui.optional")).desired_width(260.0)).labelled_by(l.id);
         ui.end_row();
         if in_keychain {
             ui.label("");
             ui.label(
-                egui::RichText::new("The key is in the macOS Keychain, which may ask to allow PrintCraft to use it.").small().color(t.text_muted),
+                egui::RichText::new(crate::i18n::text("ui.the_key_is_in_the_macos_keychain_which_may_ask_to_allow_printcraft_to_use_it"))
+                    .small()
+                    .color(t.text_muted),
             );
         } else {
-            let l = ui.label("Digital ID password");
+            let l = ui.label(crate::i18n::text("ui.digital_id_password"));
             let r = ui.add(egui::TextEdit::singleline(&mut d.password).password(true).desired_width(200.0)).labelled_by(l.id);
             if r.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
                 go = true;
@@ -627,15 +642,15 @@ fn sign_as(ui: &mut egui::Ui, app: &mut PrintCraftApp, t: &Tokens) -> bool {
     ui.add_space(6.0);
     error(ui, &d.error);
     ui.horizontal(|ui| {
-        if widgets::pill_button(ui, "Back", false).clicked() {
+        if widgets::pill_button(ui, crate::i18n::text("ui.back"), false).clicked() {
             d.step = SignStep::Choose;
             d.error = None;
         }
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-            if widgets::pill_button(ui, "Sign", true).clicked() {
+            if widgets::pill_button(ui, crate::i18n::text("ui.sign"), true).clicked() {
                 go = true;
             }
-            if widgets::pill_button(ui, "Cancel", false).clicked() {
+            if widgets::pill_button(ui, crate::i18n::text("ui.cancel"), false).clicked() {
                 close = true;
             }
         });
@@ -667,16 +682,21 @@ pub(crate) fn banner(sigs: &[SignatureInfo]) -> Option<(&'static str, Color32, S
     {
         let by = c.certificate.as_ref().map(|x| {
             let org = x.subject.organization().map(|o| format!(", {o}")).unwrap_or_default();
-            format!("{}{org}, certificate issued by {}.", x.display_name(), x.issuer.common_name().unwrap_or("an unknown issuer"))
+            crate::msg!(
+                value_value_certificate_issued_by_value,
+                x.display_name(),
+                x.issuer.common_name().unwrap_or(crate::i18n::text("ui.an_unknown_issuer")),
+                org = org
+            )
         });
-        return Some(("badge-check", Color32::from_rgb(0x14, 0x73, 0xE6), format!("Certified by {}", by.unwrap_or_default())));
+        return Some(("badge-check", Color32::from_rgb(0x14, 0x73, 0xE6), crate::msg!(certified_by_value, by.unwrap_or_default())));
     }
     Some(if signed.iter().any(|s| s.status == SignatureStatus::Invalid) {
-        ("circle-x", Color32::from_rgb(0xD7, 0x37, 0x3F), "At least one signature is invalid.".into())
+        ("circle-x", Color32::from_rgb(0xD7, 0x37, 0x3F), crate::i18n::text("ui.at_least_one_signature_is_invalid").into())
     } else if signed.iter().all(|s| s.status == SignatureStatus::Valid) {
-        ("circle-check", Color32::from_rgb(0x2D, 0x9D, 0x78), "Signed and all signatures are valid.".into())
+        ("circle-check", Color32::from_rgb(0x2D, 0x9D, 0x78), crate::i18n::text("ui.signed_and_all_signatures_are_valid").into())
     } else {
-        ("triangle-alert", Color32::from_rgb(0xE6, 0x86, 0x19), "At least one signature has problems.".into())
+        ("triangle-alert", Color32::from_rgb(0xE6, 0x86, 0x19), crate::i18n::text("ui.at_least_one_signature_has_problems").into())
     })
 }
 
@@ -709,7 +729,7 @@ pub enum PanelAction {
 pub(crate) fn panel(ui: &mut egui::Ui, t: &Tokens, sigs: &[SignatureInfo], expanded: &mut Vec<String>) -> Option<PanelAction> {
     let mut action = None;
     ui.horizontal(|ui| {
-        if widgets::pill_button(ui, "Validate all", false).clicked() {
+        if widgets::pill_button(ui, crate::i18n::text("ui.validate_all"), false).clicked() {
             action = Some(PanelAction::Validate);
         }
     });
@@ -719,7 +739,7 @@ pub(crate) fn panel(ui: &mut egui::Ui, t: &Tokens, sigs: &[SignatureInfo], expan
         ui.vertical_centered(|ui| {
             ui.add(icons::image("signature", 32.0, t.text_faint));
             ui.add_space(6.0);
-            ui.label(egui::RichText::new("This document has no signatures.").color(t.text_muted));
+            ui.label(egui::RichText::new(crate::i18n::text("ui.this_document_has_no_signatures")).color(t.text_muted));
         });
         return action;
     }
@@ -729,19 +749,21 @@ pub(crate) fn panel(ui: &mut egui::Ui, t: &Tokens, sigs: &[SignatureInfo], expan
         let open = expanded.contains(&s.field);
         let (icon, color) = status_icon(s);
         let head = if s.signed {
-            format!(
-                "Rev. {}: {} by {}",
+            crate::msg!(
+                rev_value_value_by_value,
                 s.revision,
-                if s.certify.is_some() { "Certified" } else { "Signed" },
-                s.signer.as_deref().unwrap_or("an unknown signer")
+                if s.certify.is_some() { crate::i18n::text("ui.certified") } else { crate::i18n::text("ui.signed") },
+                s.signer.as_deref().unwrap_or(crate::i18n::text("ui.an_unknown_signer"))
             )
         } else {
-            format!("Unsigned signature field: {}", s.field)
+            crate::msg!(unsigned_signature_field_value, s.field)
         };
         let resp = ui
             .horizontal(|ui| {
                 let chevron = if open { "chevron-down" } else { "chevron-right" };
-                let toggle = icons::button(ui, chevron, 20.0, false, if open { "Collapse" } else { "Expand" }).clicked();
+                let toggle =
+                    icons::button(ui, chevron, 20.0, false, if open { crate::i18n::text("ui.collapse") } else { crate::i18n::text("ui.expand") })
+                        .clicked();
                 ui.add(icons::image(icon, 16.0, color));
                 let l = ui.add(egui::Label::new(egui::RichText::new(&head).font(theme::semibold(12.5)).color(t.text)).sense(egui::Sense::click()));
                 toggle || l.clicked()
@@ -760,16 +782,16 @@ pub(crate) fn panel(ui: &mut egui::Ui, t: &Tokens, sigs: &[SignatureInfo], expan
         egui::Frame::NONE.inner_margin(egui::Margin { left: 44, right: 4, top: 2, bottom: 8 }).show(ui, |ui| {
             ui.spacing_mut().item_spacing.y = 3.0;
             if !s.signed {
-                if widgets::pill_button(ui, "Sign this field…", true).clicked() {
+                if widgets::pill_button(ui, crate::i18n::text("ui.sign_this_field"), true).clicked() {
                     action = Some(PanelAction::Sign(s.field.clone()));
                 }
                 return;
             }
             ui.label(
                 egui::RichText::new(match s.status {
-                    SignatureStatus::Valid => "Signature is valid:",
-                    SignatureStatus::Unknown => "Signature validity is UNKNOWN:",
-                    SignatureStatus::Invalid => "Signature is INVALID:",
+                    SignatureStatus::Valid => crate::i18n::text("ui.signature_is_valid"),
+                    SignatureStatus::Unknown => crate::i18n::text("ui.signature_validity_is_unknown"),
+                    SignatureStatus::Invalid => crate::i18n::text("ui.signature_is_invalid"),
                 })
                 .font(theme::semibold(12.0)),
             );
@@ -777,32 +799,32 @@ pub(crate) fn panel(ui: &mut egui::Ui, t: &Tokens, sigs: &[SignatureInfo], expan
                 ui.add(egui::Label::new(egui::RichText::new(format!("• {line}")).font(theme::regular(11.5)).color(t.text_muted)).wrap());
             }
             ui.add_space(4.0);
-            ui.label(egui::RichText::new("Signature Details").font(theme::semibold(12.0)));
+            ui.label(egui::RichText::new(crate::i18n::text("ui.signature_details")).font(theme::semibold(12.0)));
             let row = |ui: &mut egui::Ui, k: &str, v: &str| {
                 ui.add(egui::Label::new(egui::RichText::new(format!("{k}: {v}")).font(theme::regular(11.5))).wrap());
             };
             if let Some(r) = &s.reason {
-                row(ui, "Reason", r);
+                row(ui, crate::i18n::text("ui.reason_f81ab8"), r);
             }
             if let Some(l) = &s.location {
-                row(ui, "Location", l);
+                row(ui, crate::i18n::text("ui.location"), l);
             }
             if let Some(d) = &s.date {
-                row(ui, "Signing time", &sign::pdf::display_date(d));
+                row(ui, crate::i18n::text("ui.signing_time"), &sign::pdf::display_date(d));
             }
             if let Some(a) = &s.algorithm {
-                row(ui, "Algorithm", a);
+                row(ui, crate::i18n::text("ui.algorithm"), a);
             }
             if let Some(c) = &s.certificate {
-                row(ui, "Signer", &c.subject.display());
-                row(ui, "Issued by", &c.issuer.display());
-                row(ui, "Valid", &format!("{} to {}", c.not_before, c.not_after));
+                row(ui, crate::i18n::text("ui.signer"), &c.subject.display());
+                row(ui, crate::i18n::text("ui.issued_by"), &c.issuer.display());
+                row(ui, crate::i18n::text("ui.valid"), &crate::msg!(value_to_value_aee49d, c.not_before, c.not_after));
             }
             match s.page {
                 Some(p) => {
                     let link = ui.add(
                         egui::Label::new(
-                            egui::RichText::new(format!("Field: {} on page {}", s.field, p + 1))
+                            egui::RichText::new(crate::msg!(field_value_on_page_value, s.field, p + 1))
                                 .font(theme::regular(11.5))
                                 .color(t.accent_text)
                                 .underline(),
@@ -813,28 +835,28 @@ pub(crate) fn panel(ui: &mut egui::Ui, t: &Tokens, sigs: &[SignatureInfo], expan
                         action = Some(PanelAction::GoTo(p));
                     }
                 }
-                None => row(ui, "Field", &s.field),
+                None => row(ui, crate::i18n::text("ui.field"), &s.field),
             }
             ui.add_space(4.0);
             ui.horizontal_wrapped(|ui| {
                 if let Some(c) = s.chain.last().or(s.certificate.as_ref())
                     && s.status == SignatureStatus::Unknown
-                    && ui.button("Add to trusted certificates").clicked()
+                    && ui.button(crate::i18n::text("ui.add_to_trusted_certificates")).clicked()
                 {
                     action = Some(PanelAction::Trust(Box::new(c.clone())));
                 }
-                if ui.button("View signed version").clicked() {
+                if ui.button(crate::i18n::text("ui.view_signed_version")).clicked() {
                     action = Some(PanelAction::ViewSigned(s.signed_len));
                 }
                 if let Some(c) = &s.certificate
-                    && ui.button("Show certificate…").clicked()
+                    && ui.button(crate::i18n::text("ui.show_certificate")).clicked()
                 {
                     let mut chain = vec![c.clone()];
                     chain.extend(s.chain.iter().filter(|x| x.raw != c.raw).cloned());
                     action = Some(PanelAction::ViewCertificate(chain));
                 }
                 if let Some(c) = &s.certificate
-                    && ui.button("Export certificate…").clicked()
+                    && ui.button(crate::i18n::text("ui.export_certificate_d5b878")).clicked()
                 {
                     action = Some(PanelAction::ExportCertificate(Box::new(c.clone())));
                 }
@@ -875,8 +897,8 @@ fn key_usage(bits: u16) -> String {
         "Encipher Only",
         "Decipher Only",
     ];
-    let used: Vec<&str> = NAMES.iter().enumerate().filter(|(i, _)| bits & (1 << i) != 0).map(|(_, n)| *n).collect();
-    if used.is_empty() { "None".into() } else { used.join(", ") }
+    let used: Vec<&str> = NAMES.iter().enumerate().filter(|(i, _)| bits & (1 << i) != 0).map(|(_, n)| crate::i18n::current().tr(n)).collect();
+    if used.is_empty() { crate::i18n::text("ui.none").into() } else { used.join(", ") }
 }
 
 /// What the viewer asks for.
@@ -887,8 +909,8 @@ pub(crate) enum CertAction {
 
 /// The Certificate Viewer dialog: the chain on the left, the selected certificate's tabs.
 pub(crate) fn cert_viewer(ui: &mut egui::Ui, v: &mut CertViewer, trusted: &[Certificate], t: &Tokens) -> (bool, Option<CertAction>) {
-    title(ui, "Certificate Viewer");
-    ui.label(egui::RichText::new("This dialog shows the details of a certificate and its chain.").color(t.text_muted));
+    title(ui, crate::i18n::text("ui.certificate_viewer"));
+    ui.label(egui::RichText::new(crate::i18n::text("ui.this_dialog_shows_the_details_of_a_certificate_and_its_chain")).color(t.text_muted));
     ui.add_space(8.0);
     let mut action = None;
     v.selected = v.selected.min(v.chain.len().saturating_sub(1));
@@ -911,7 +933,11 @@ pub(crate) fn cert_viewer(ui: &mut egui::Ui, v: &mut CertViewer, trusted: &[Cert
             ui.set_width(440.0);
             let Some(c) = v.chain.get(v.selected).cloned() else { return };
             ui.horizontal(|ui| {
-                for (tab, label) in [(CertTab::Summary, "Summary"), (CertTab::Details, "Details"), (CertTab::Trust, "Trust")] {
+                for (tab, label) in [
+                    (CertTab::Summary, crate::i18n::text("ui.summary")),
+                    (CertTab::Details, crate::i18n::text("ui.details")),
+                    (CertTab::Trust, crate::i18n::text("ui.trust")),
+                ] {
                     if widgets::pill_button(ui, label, v.tab == tab).clicked() {
                         v.tab = tab;
                     }
@@ -931,55 +957,63 @@ pub(crate) fn cert_viewer(ui: &mut egui::Ui, v: &mut CertViewer, trusted: &[Cert
                 CertTab::Summary => grid(
                     ui,
                     vec![
-                        ("Issued to", c.subject.display()),
-                        ("Issued by", c.issuer.display()),
-                        ("Valid from", c.not_before.to_string()),
-                        ("Valid to", c.not_after.to_string()),
-                        ("Intended usage", c.key_usage.map(key_usage).unwrap_or_else(|| "Any".into())),
+                        (crate::i18n::text("ui.issued_to"), c.subject.display()),
+                        (crate::i18n::text("ui.issued_by"), c.issuer.display()),
+                        (crate::i18n::text("ui.valid_from"), c.not_before.to_string()),
+                        (crate::i18n::text("ui.valid_to"), c.not_after.to_string()),
+                        (crate::i18n::text("ui.intended_usage"), c.key_usage.map(key_usage).unwrap_or_else(|| crate::i18n::text("ui.any").into())),
                     ],
                 ),
                 CertTab::Details => grid(
                     ui,
                     vec![
-                        ("Version", "3".into()),
-                        ("Serial number", c.serial_hex()),
-                        ("Issuer", c.issuer.display()),
-                        ("Subject", c.subject.display()),
-                        ("Validity starts", c.not_before.to_string()),
-                        ("Validity ends", c.not_after.to_string()),
-                        ("Public key", c.public_key.describe()),
-                        ("Basic constraints", if c.is_ca { "Certificate authority".into() } else { "End entity".into() }),
-                        ("Key usage", c.key_usage.map(key_usage).unwrap_or_else(|| "Not present".into())),
-                        ("Self-signed", if c.is_self_signed() { "Yes".into() } else { "No".into() }),
-                        ("SHA-1 digest", hex(&sign::keys::DigestAlg::Sha1.digest(&[&c.raw]))),
-                        ("SHA-256 digest", hex(&sign::keys::DigestAlg::Sha256.digest(&[&c.raw]))),
+                        (crate::i18n::text("ui.version"), "3".into()),
+                        (crate::i18n::text("ui.serial_number"), c.serial_hex()),
+                        (crate::i18n::text("ui.issuer"), c.issuer.display()),
+                        (crate::i18n::text("ui.subject"), c.subject.display()),
+                        (crate::i18n::text("ui.validity_starts"), c.not_before.to_string()),
+                        (crate::i18n::text("ui.validity_ends"), c.not_after.to_string()),
+                        (crate::i18n::text("ui.public_key"), c.public_key.describe()),
+                        (
+                            crate::i18n::text("ui.basic_constraints"),
+                            if c.is_ca { crate::i18n::text("ui.certificate_authority").into() } else { crate::i18n::text("ui.end_entity").into() },
+                        ),
+                        (crate::i18n::text("ui.key_usage"), c.key_usage.map(key_usage).unwrap_or_else(|| crate::i18n::text("ui.not_present").into())),
+                        (
+                            crate::i18n::text("ui.self_signed"),
+                            if c.is_self_signed() { crate::i18n::text("ui.yes").into() } else { crate::i18n::text("ui.no").into() },
+                        ),
+                        (crate::i18n::text("ui.sha_1_digest"), hex(&sign::keys::DigestAlg::Sha1.digest(&[&c.raw]))),
+                        (crate::i18n::text("ui.sha_256_digest"), hex(&sign::keys::DigestAlg::Sha256.digest(&[&c.raw]))),
                     ],
                 ),
                 CertTab::Trust => {
                     let is_trusted = trusted.iter().any(|x| x.raw == c.raw);
                     let anchored = v.chain.iter().any(|x| trusted.iter().any(|y| y.raw == x.raw));
                     ui.label(if is_trusted {
-                        "This certificate is in your list of trusted certificates."
+                        crate::i18n::text("ui.this_certificate_is_in_your_list_of_trusted_certificates")
                     } else if anchored {
-                        "This certificate is trusted through a certificate above it in the chain."
+                        crate::i18n::text("ui.this_certificate_is_trusted_through_a_certificate_above_it_in_the_chain")
                     } else {
-                        "This certificate is not trusted. Signatures made with it show an unknown identity."
+                        crate::i18n::text("ui.this_certificate_is_not_trusted_signatures_made_with_it_show_an_unknown_identity")
                     });
                     ui.add_space(8.0);
-                    if !is_trusted && widgets::pill_button(ui, "Add to Trusted Certificates", false).clicked() {
+                    if !is_trusted && widgets::pill_button(ui, crate::i18n::text("ui.add_to_trusted_certificates_82cdb2"), false).clicked() {
                         action = Some(CertAction::Trust(Box::new(c.clone())));
                     }
                 }
             }
             ui.add_space(8.0);
-            if widgets::pill_button(ui, "Export…", false).clicked() {
+            if widgets::pill_button(ui, crate::i18n::text("ui.export_4a4c59"), false).clicked() {
                 action = Some(CertAction::Export(Box::new(c.clone())));
             }
         });
     });
     ui.add_space(10.0);
     let mut close = false;
-    ui.horizontal(|ui| ui.with_layout(Layout::right_to_left(Align::Center), |ui| close = widgets::pill_button(ui, "OK", true).clicked()));
+    ui.horizontal(|ui| {
+        ui.with_layout(Layout::right_to_left(Align::Center), |ui| close = widgets::pill_button(ui, crate::i18n::text("ui.ok"), true).clicked())
+    });
     (close, action)
 }
 

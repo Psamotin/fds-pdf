@@ -11,6 +11,7 @@ use crate::{Dialog, Mode, PrintCraftApp, PropsTab, RightPanel, SaveTarget, theme
 
 impl PrintCraftApp {
     pub(crate) fn command_enabled(&self, spec: &CommandSpec) -> bool {
+        let _locale = crate::i18n::scope(self.language);
         commands::is_enabled(spec, &self.session, self.active_ids().map(|(_, id)| id))
     }
 
@@ -20,46 +21,52 @@ impl PrintCraftApp {
     /// Last-resort guard (AGENTS.md §4): a command that panics is reported and the app, with its
     /// open documents, keeps running. Edits are applied to a copy, so the document is unchanged.
     pub fn execute(&mut self, id: &str) -> bool {
+        let _locale = crate::i18n::scope(self.language);
         match printcraft_engine::guard(|| self.execute_unguarded(id)) {
             Ok(done) => done,
             Err(m) => {
-                self.notify(format!("That didn't work: an internal error stopped it ({m}). Your documents are unchanged."));
+                self.notify(crate::msg!(that_didn_t_work_an_internal_error_stopped_it_value_your_documents_are_unchanged, m = m));
                 true
             }
         }
     }
 
     fn execute_unguarded(&mut self, id: &str) -> bool {
+        let _locale = crate::i18n::scope(self.language);
         let Some(spec) = commands::command(id) else { return false };
         if !self.command_enabled(spec) {
             let why = match spec.needs {
-                commands::Needs::Undo => "Nothing to undo".to_string(),
-                commands::Needs::Redo => "Nothing to redo".to_string(),
-                commands::Needs::FillForms if self.active.is_some() => "This document has no form fields you can fill in".to_string(),
-                commands::Needs::HasComments if self.active.is_some() => "This document has no comments to flatten".to_string(),
-                commands::Needs::HasFields if self.active.is_some() => "This document has no form fields to flatten".to_string(),
-                commands::Needs::HasRedactions if self.active.is_some() => {
-                    "There are no redaction marks (mark text, areas or pages first)".to_string()
+                commands::Needs::Undo => crate::i18n::text("ui.nothing_to_undo").to_string(),
+                commands::Needs::Redo => crate::i18n::text("ui.nothing_to_redo").to_string(),
+                commands::Needs::FillForms if self.active.is_some() => {
+                    crate::i18n::text("ui.this_document_has_no_form_fields_you_can_fill_in").to_string()
                 }
-                commands::Needs::Marks(k) if self.active.is_some() => format!(
-                    "This document has no {} to change",
+                commands::Needs::HasComments if self.active.is_some() => crate::i18n::text("ui.this_document_has_no_comments_to_flatten").to_string(),
+                commands::Needs::HasFields if self.active.is_some() => {
+                    crate::i18n::text("ui.this_document_has_no_form_fields_to_flatten").to_string()
+                }
+                commands::Needs::HasRedactions if self.active.is_some() => {
+                    crate::i18n::text("ui.there_are_no_redaction_marks_mark_text_areas_or_pages_first").to_string()
+                }
+                commands::Needs::Marks(k) if self.active.is_some() => crate::msg!(
+                    this_document_has_no_value_to_change,
                     match k {
-                        printcraft_engine::MarkKind::HeaderFooter => "header or footer",
-                        printcraft_engine::MarkKind::Watermark => "watermark",
-                        printcraft_engine::MarkKind::Background => "background",
+                        printcraft_engine::MarkKind::HeaderFooter => crate::i18n::text("ui.header_or_footer"),
+                        printcraft_engine::MarkKind::Watermark => crate::i18n::text("ui.watermark"),
+                        printcraft_engine::MarkKind::Background => crate::i18n::text("ui.background"),
                     }
                 ),
                 commands::Needs::Security | commands::Needs::ProtectedSecurity if self.active.is_some() => {
                     if self.active_ids().and_then(|(_, id)| self.session.get(id)).is_some_and(|d| d.allows_security_change()) {
-                        "This document isn't password-protected".to_string()
+                        crate::i18n::text("ui.this_document_isn_t_password_protected").to_string()
                     } else {
-                        "Only the document's owner can change its security (open it with the permissions password)".to_string()
+                        crate::i18n::text("ui.only_the_document_s_owner_can_change_its_security_open_it_with_the_permissions_password").to_string()
                     }
                 }
                 commands::Needs::Assembly | commands::Needs::Modification | commands::Needs::Annotate if self.active.is_some() => {
-                    "The document's security settings don't allow this change".to_string()
+                    crate::i18n::text("ui.the_document_s_security_settings_don_t_allow_this_change").to_string()
                 }
-                _ => "Open a document first".to_string(),
+                _ => crate::i18n::text("ui.open_a_document_first").to_string(),
             };
             self.notify(why);
             return false;
@@ -90,7 +97,7 @@ impl PrintCraftApp {
             }
             "protect.remove" => {
                 if self.apply_edit(Edit::RemoveProtection) {
-                    self.notify("Security will be removed when you save");
+                    self.notify(crate::i18n::text("ui.security_will_be_removed_when_you_save"));
                 }
             }
             "page.number" => {
@@ -251,7 +258,7 @@ impl PrintCraftApp {
                 self.quick_tool = crate::QuickTool::EditText;
                 self.left = crate::LeftPanel::Tool("edit");
                 self.left_open = true;
-                self.notify("Click text or an image to edit it");
+                self.notify(crate::i18n::text("ui.click_text_or_an_image_to_edit_it"));
             }
             "edit.advanced_search" => {
                 if let Some(i) = self.active {
@@ -273,7 +280,7 @@ impl PrintCraftApp {
             "edit.image" => self.add_image_dialog(),
             "edit.link" => {
                 self.quick_tool = crate::QuickTool::Link;
-                self.notify("Drag a rectangle to create a link; double-click a link to edit it");
+                self.notify(crate::i18n::text("ui.drag_a_rectangle_to_create_a_link_double_click_a_link_to_edit_it"));
             }
             "edit.links_from_urls" => self.links_from_urls(),
             "edit.remove_links" => {
@@ -310,7 +317,7 @@ impl PrintCraftApp {
             "redact.apply" => {
                 let marks = active.and_then(|i| self.session.get(self.views[i].id)).map_or(0, |d| d.redaction_marks());
                 if marks == 0 {
-                    self.notify("There are no redaction marks to apply");
+                    self.notify(crate::i18n::text("ui.there_are_no_redaction_marks_to_apply"));
                 } else {
                     self.dialog = Some(Dialog::RedactApply);
                 }
@@ -340,7 +347,7 @@ impl PrintCraftApp {
             "sign.digital" | "sign.certify" => {
                 let certify = id == "sign.certify";
                 self.quick_tool = crate::QuickTool::SignArea { certify };
-                self.notify("Drag to draw the area where the signature should appear.");
+                self.notify(crate::i18n::text("ui.drag_to_draw_the_area_where_the_signature_should_appear"));
             }
             "sign.certify_invisible" => {
                 let page = active.map_or(0, |i| self.views[i].current);
@@ -357,13 +364,13 @@ impl PrintCraftApp {
                 if let Some(i) = self.active
                     && let Err(e) = self.fit_visible(i)
                 {
-                    self.notify(format!("Couldn't fit the visible content: {e}"));
+                    self.notify(crate::msg!(couldn_t_fit_the_visible_content_value, e = e));
                 }
             }
             "view.marquee_zoom" => self.quick_tool = crate::QuickTool::MarqueeZoom,
             "edit.snapshot" => {
                 self.quick_tool = crate::QuickTool::Snapshot;
-                self.notify("Drag a rectangle around the area to copy");
+                self.notify(crate::i18n::text("ui.drag_a_rectangle_around_the_area_to_copy"));
             }
             "page.copy" => self.copy_pages(false),
             "page.cut" => self.copy_pages(true),
@@ -402,8 +409,8 @@ impl PrintCraftApp {
             "actions.wizard" | "actions.distribution" | "actions.optimize_scans" => {
                 self.wizard.editing = None;
                 match id {
-                    "actions.distribution" => self.wizard.selected = Some("Prepare for Distribution".into()),
-                    "actions.optimize_scans" => self.wizard.selected = Some("Optimize Scanned Documents".into()),
+                    "actions.distribution" => self.wizard.selected = Some(crate::i18n::text("ui.prepare_for_distribution").into()),
+                    "actions.optimize_scans" => self.wizard.selected = Some(crate::i18n::text("ui.optimize_scanned_documents").into()),
                     _ => {}
                 }
                 self.dialog = Some(Dialog::ActionWizard);
@@ -421,7 +428,7 @@ impl PrintCraftApp {
                 if let Some(i) = active {
                     self.views[i].forms.focus = None;
                 }
-                self.notify(format!("Click on the page to add a {}, or drag to set its size", tool.label().to_lowercase()));
+                self.notify(crate::msg!(click_on_the_page_to_add_a_value_or_drag_to_set_its_size, tool.label().to_lowercase()));
             }
             fill if crate::fill_sign::FillTool::from_command(fill).is_some() => {
                 let Some(tool) = crate::fill_sign::FillTool::from_command(fill) else { return false };
@@ -442,7 +449,7 @@ impl PrintCraftApp {
             }
             "page.crop" => {
                 self.quick_tool = crate::QuickTool::Crop;
-                self.notify("Drag a rectangle on a page to crop it; double-click a page for Set Page Boxes");
+                self.notify(crate::i18n::text("ui.drag_a_rectangle_on_a_page_to_crop_it_double_click_a_page_for_set_page_boxes"));
             }
             "page.boxes" => {
                 self.boxes_draft.seeded = None;
@@ -468,6 +475,7 @@ impl PrintCraftApp {
 
     /// Run the registered keyboard shortcuts (more specific combinations first).
     pub(crate) fn registry_shortcuts(&mut self, ctx: &egui::Context) {
+        let _locale = crate::i18n::scope(self.language);
         use egui::{Key, KeyboardShortcut, Modifiers};
         let typing = ctx.egui_wants_keyboard_input();
         let mut specs: Vec<&CommandSpec> = COMMANDS.iter().filter(|c| c.shortcut.is_some()).collect();
@@ -498,9 +506,9 @@ impl PrintCraftApp {
 /// Render a top-level menu's registered commands (with live labels, shortcuts and enablement).
 pub(crate) fn registry_menu(app: &mut PrintCraftApp, ui: &mut egui::Ui, menu: &str) {
     let mac = cfg!(target_os = "macos") || cfg!(target_arch = "wasm32");
-    for spec in commands::menu(menu) {
+    for spec in commands::menu(menu).filter(|spec| !crate::i18n::is_marketing_command(spec.id)) {
         let label = commands::current_label(spec, &app.session, app.active_ids().map(|(_, id)| id));
-        let label = app.language.tr(&label);
+        let label = app.language.command_label(&label);
         let shortcut = spec.shortcut.map(|s| s.label(mac)).unwrap_or_default();
         let enabled = app.command_enabled(spec);
         let resp = ui.add_enabled(enabled, egui::Button::new(label).shortcut_text(shortcut));

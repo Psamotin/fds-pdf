@@ -1,12 +1,14 @@
 //! The Print dialog in the real shell (egui_kittest): settings, preview sheets, Save as PDF.
 
+mod support;
+
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
 use printcraft_ui_egui::{Dialog, PrintCraftApp};
 
 fn harness() -> Harness<'static, PrintCraftApp> {
     let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(|_cc| {
-        let mut app = PrintCraftApp::new();
+        let mut app = support::english_app();
         app.open_bytes("form.pdf", None, include_bytes!("data/form.pdf").to_vec()).unwrap();
         app
     });

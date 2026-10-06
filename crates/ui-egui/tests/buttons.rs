@@ -1,5 +1,7 @@
 //! Push buttons run their actions (Reset form, Named, …) without a JavaScript engine.
 
+mod support;
+
 use egui_kittest::Harness;
 use printcraft_ui_egui::{Dialog, PrintCraftApp};
 
@@ -49,7 +51,7 @@ fn click_field(h: &mut Harness<'static, PrintCraftApp>, name: &str) {
 #[test]
 fn buttons_reset_navigate_and_print() {
     let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(|_cc| {
-        let mut app = PrintCraftApp::new();
+        let mut app = support::english_app();
         app.open_bytes("buttons.pdf", None, fixture()).unwrap();
         app.set_option("zoom", "150").unwrap();
         app

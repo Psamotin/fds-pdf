@@ -1,15 +1,27 @@
-name: FDS PDF Windows Build
+name: FDS PDF R1 Windows Build
 
 on:
   workflow_dispatch:
   push:
-    branches:
-      - main
+    branches: [main, fds-pdf-r1-branding-ru]
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/printcraft/**'
+      - 'crates/ui-egui/**'
+      - 'Cargo.lock'
+      - '.github/workflows/fds-windows-build.yml'
+
+permissions:
+  contents: read
+
+env:
+  FDS_VERSION: 0.2.0-fds.1
+  PRINTCRAFT_REQUIRE_WINRES: '1'
 
 jobs:
   windows-x64:
     runs-on: windows-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -18,27 +30,54 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: 1.95.0
+          components: rustfmt
 
-      - name: Show toolchain
+      - name: Check format and product version
         shell: pwsh
         run: |
-          rustc --version
-          cargo --version
+          cargo fmt --all -- --check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $metadata = cargo metadata --locked --no-deps --format-version 1 | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $product = $metadata.packages | Where-Object { $_.name -eq 'printcraft' }
+          if ($product.version -ne $env:FDS_VERSION) { throw 'Product version does not match artifact version' }
 
-      - name: Build PrintCraft baseline
+      - name: Test desktop UI and application
+        shell: pwsh
+        run: |
+          cargo test --locked -p printcraft-ui-egui -p printcraft
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Build FDS PDF R1
         shell: pwsh
         run: |
           cargo build --release --locked -p printcraft
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: Verify EXE
+      - name: Prepare corporate artifact
         shell: pwsh
         run: |
-          Get-Item target\release\printcraft.exe |
-            Select-Object FullName, Length, LastWriteTime
+          $out = 'dist/FDS-PDF'
+          New-Item -ItemType Directory -Force $out | Out-Null
+          Copy-Item target/release/printcraft.exe "$out/FDS-PDF.exe"
+          Copy-Item LICENSE-MIT, LICENSE-APACHE, NOTICE, ATTRIBUTION.md, ATTRIBUTION.toml $out
+          # Preserve each licence path referenced by the attribution manifest.
+          $licences = Select-String -Path ATTRIBUTION.toml -Pattern '^licence_file = "([^"]+)"' |
+            ForEach-Object { $_.Matches[0].Groups[1].Value } | Sort-Object -Unique
+          foreach ($licence in $licences) {
+            if (-not (Test-Path -LiteralPath $licence -PathType Leaf)) { throw "Missing licence: $licence" }
+            $destination = Join-Path $out $licence
+            New-Item -ItemType Directory -Force (Split-Path $destination) | Out-Null
+            Copy-Item -LiteralPath $licence -Destination $destination
+          }
+          Get-Item "$out/FDS-PDF.exe" | Select-Object FullName, Length, LastWriteTime
+          $exe = Get-Item "$out/FDS-PDF.exe"
+          if ($exe.VersionInfo.ProductName -ne 'ФДС ПДФ') { throw 'Incorrect Windows product name' }
+          if ($exe.VersionInfo.ProductVersion -ne $env:FDS_VERSION) { throw 'Incorrect Windows product version' }
 
-      - name: Upload Windows build
+      - name: Upload Windows release candidate
         uses: actions/upload-artifact@v4
         with:
-          name: fds-pdf-windows-x64-baseline
-          path: target/release/printcraft.exe
+          name: FDS-PDF-${{ env.FDS_VERSION }}-windows-x64
+          path: dist/FDS-PDF/
           if-no-files-found: error

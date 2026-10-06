@@ -1,11 +1,13 @@
 //! Filling in a form in the real shell (egui_kittest): typing, Tab, check boxes, radios, choices.
 
+mod support;
+
 use egui_kittest::Harness;
 use printcraft_ui_egui::PrintCraftApp;
 
 fn harness() -> Harness<'static, PrintCraftApp> {
     let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(|_cc| {
-        let mut app = PrintCraftApp::new();
+        let mut app = support::english_app();
         app.open_bytes("form.pdf", None, include_bytes!("data/form.pdf").to_vec()).unwrap();
         app.set_option("left", "closed").unwrap();
         // The whole 300×400 pt page on screen.

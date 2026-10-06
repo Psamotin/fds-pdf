@@ -1,6 +1,8 @@
 //! Headless UI tests for editing and saving: the organize toolbar, selection, undo/redo keys,
 //! save/save-as, the unsaved-changes prompt and editable document properties.
 
+mod support;
+
 use egui::accesskit::Role;
 use egui::{Key, Modifiers};
 use egui_kittest::Harness;
@@ -36,7 +38,7 @@ fn fixture(n: usize) -> Vec<u8> {
 
 fn harness(pages: usize, setup: impl FnOnce(&mut PrintCraftApp) + 'static) -> Harness<'static, PrintCraftApp> {
     let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(move |_cc| {
-        let mut app = PrintCraftApp::new();
+        let mut app = support::english_app();
         app.open_bytes("doc.pdf", None, fixture(pages)).expect("fixture opens");
         setup(&mut app);
         app
@@ -488,7 +490,7 @@ fn protected(user: &str, owner: &str, permissions: i32) -> Vec<u8> {
 #[test]
 fn password_prompt_opens_and_security_tab_reports_the_details() {
     let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(|_cc| {
-        let mut app = PrintCraftApp::new();
+        let mut app = support::english_app();
         app.open_bytes("secret.pdf", None, protected("pw", "owner", -1)).unwrap();
         app
     });
@@ -512,7 +514,7 @@ fn password_prompt_opens_and_security_tab_reports_the_details() {
 #[test]
 fn restricted_documents_show_a_notice_and_block_page_changes() {
     let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(|_cc| {
-        let mut app = PrintCraftApp::new();
+        let mut app = support::english_app();
         app.open_bytes("locked.pdf", None, protected("", "owner", 0b0100)).unwrap(); // opens without a password
         app.set_option("organize", "on").unwrap();
         app
@@ -533,7 +535,7 @@ fn restricted_documents_show_a_notice_and_block_page_changes() {
 
 #[test]
 fn replace_pages_dialog_swaps_page_content() {
-    let mut app = PrintCraftApp::new();
+    let mut app = support::english_app();
     app.open_bytes("doc.pdf", None, fixture(3)).unwrap();
     app.views[0].select_pages(&[1]);
     app.start_replace("other.pdf".into(), fixture(5));
@@ -658,7 +660,7 @@ fn source_font_fixture() -> Vec<u8> {
 
 fn open_source_font_fixture() -> Harness<'static, PrintCraftApp> {
     Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(|_cc| {
-        let mut app = PrintCraftApp::new();
+        let mut app = support::english_app();
         app.open_bytes("fonts.pdf", None, source_font_fixture()).expect("font fixture opens");
         app
     })
@@ -758,7 +760,7 @@ fn double_drawn() -> Vec<u8> {
 #[test]
 fn editing_a_double_drawn_line_replaces_every_copy() {
     let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(|_cc| {
-        let mut app = PrintCraftApp::new();
+        let mut app = support::english_app();
         app.open_bytes("bold.pdf", None, double_drawn()).expect("opens");
         app
     });
@@ -790,7 +792,7 @@ fn editing_existing_images_on_the_page() {
     let mut png = Vec::new();
     image::RgbImage::from_pixel(80, 40, image::Rgb([200, 40, 40])).write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png).unwrap();
     let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(move |_cc| {
-        let mut app = PrintCraftApp::new();
+        let mut app = support::english_app();
         app.open_bytes("picture.png", None, png.clone()).expect("opens");
         app
     });

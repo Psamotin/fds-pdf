@@ -135,6 +135,7 @@ pub(crate) fn keys(ctx: &egui::Context, view: &mut DocView) {
 impl PrintCraftApp {
     /// Open Link Properties for a new link area or an existing link.
     pub(crate) fn open_link_props(&mut self, page: usize, rect: Option<[f64; 4]>, index: Option<usize>) {
+        let _locale = crate::i18n::scope(self.language);
         let Some((_, id)) = self.active_ids() else { return };
         let existing = index.and_then(|i| self.session.get(id).and_then(|d| d.links.iter().find(|l| l.page == page && l.index == i).cloned()));
         let draft = match existing {
@@ -169,15 +170,16 @@ impl PrintCraftApp {
 
     /// Create links from URLs in the text of every page.
     pub fn links_from_urls(&mut self) {
+        let _locale = crate::i18n::scope(self.language);
         let Some((_, id)) = self.active_ids() else { return };
         let found = self.session.find_urls(id);
         if found.is_empty() {
-            self.notify("No unlinked web addresses were found in the text");
+            self.notify(crate::i18n::text("ui.no_unlinked_web_addresses_were_found_in_the_text"));
             return;
         }
         let n = found.len();
         if self.apply_edit(Edit::AddLinks { links: found, style: LinkStyle::default() }) {
-            self.notify(format!("Created {n} link{}", if n == 1 { "" } else { "s" }));
+            self.notify(crate::msg!(created_value_link_value, crate::i18n::plural_suffix(n), n = n));
         }
     }
 }
@@ -185,20 +187,22 @@ impl PrintCraftApp {
 /// Link Properties. Returns (apply, cancel).
 pub(crate) fn body(ui: &mut egui::Ui, d: &mut LinkDraft, pages: usize, t: &Tokens) -> (bool, bool) {
     ui.set_width(460.0);
-    ui.label(egui::RichText::new(if d.index.is_some() { "Link Properties" } else { "Create Link" }).font(theme::semibold(18.0)));
+    ui.label(
+        egui::RichText::new(if d.index.is_some() { crate::i18n::text("ui.link_properties") } else { crate::i18n::text("ui.create_link") })
+            .font(theme::semibold(18.0)),
+    );
     ui.add_space(8.0);
-    widgets::section_title(ui, "Link Appearance");
+    widgets::section_title(ui, crate::i18n::text("ui.link_appearance"));
     egui::Grid::new("link-appearance").num_columns(2).spacing([12.0, 8.0]).show(ui, |ui| {
-        ui.label("Link Type:");
-        egui::ComboBox::from_id_salt("link-type").selected_text(if d.style.visible { "Visible Rectangle" } else { "Invisible Rectangle" }).show_ui(
-            ui,
-            |ui| {
-                ui.selectable_value(&mut d.style.visible, true, "Visible Rectangle");
-                ui.selectable_value(&mut d.style.visible, false, "Invisible Rectangle");
-            },
-        );
+        ui.label(crate::i18n::text("ui.link_type"));
+        egui::ComboBox::from_id_salt("link-type")
+            .selected_text(if d.style.visible { crate::i18n::text("ui.visible_rectangle") } else { crate::i18n::text("ui.invisible_rectangle") })
+            .show_ui(ui, |ui| {
+                ui.selectable_value(&mut d.style.visible, true, crate::i18n::text("ui.visible_rectangle"));
+                ui.selectable_value(&mut d.style.visible, false, crate::i18n::text("ui.invisible_rectangle"));
+            });
         ui.end_row();
-        ui.label("Highlight Style:");
+        ui.label(crate::i18n::text("ui.highlight_style"));
         egui::ComboBox::from_id_salt("link-hl").selected_text(d.style.highlight.label()).show_ui(ui, |ui| {
             for h in LinkHighlight::ALL {
                 ui.selectable_value(&mut d.style.highlight, h, h.label());
@@ -206,22 +210,22 @@ pub(crate) fn body(ui: &mut egui::Ui, d: &mut LinkDraft, pages: usize, t: &Token
         });
         ui.end_row();
         if d.style.visible {
-            ui.label("Line Thickness:");
+            ui.label(crate::i18n::text("ui.line_thickness_fa3775"));
             egui::ComboBox::from_id_salt("link-w")
                 .selected_text(if d.style.width <= 1.0 {
-                    "Thin"
+                    crate::i18n::text("ui.thin")
                 } else if d.style.width <= 2.0 {
-                    "Medium"
+                    crate::i18n::text("ui.medium")
                 } else {
-                    "Thick"
+                    crate::i18n::text("ui.thick")
                 })
                 .show_ui(ui, |ui| {
-                    ui.selectable_value(&mut d.style.width, 1.0, "Thin");
-                    ui.selectable_value(&mut d.style.width, 2.0, "Medium");
-                    ui.selectable_value(&mut d.style.width, 3.0, "Thick");
+                    ui.selectable_value(&mut d.style.width, 1.0, crate::i18n::text("ui.thin"));
+                    ui.selectable_value(&mut d.style.width, 2.0, crate::i18n::text("ui.medium"));
+                    ui.selectable_value(&mut d.style.width, 3.0, crate::i18n::text("ui.thick"));
                 });
             ui.end_row();
-            ui.label("Line Style:");
+            ui.label(crate::i18n::text("ui.line_style"));
             let mut style = if d.style.dashed {
                 1
             } else if d.style.underline {
@@ -229,15 +233,19 @@ pub(crate) fn body(ui: &mut egui::Ui, d: &mut LinkDraft, pages: usize, t: &Token
             } else {
                 0
             };
-            egui::ComboBox::from_id_salt("link-s").selected_text(["Solid", "Dashed", "Underline"][style]).show_ui(ui, |ui| {
-                for (k, l) in ["Solid", "Dashed", "Underline"].iter().enumerate() {
-                    ui.selectable_value(&mut style, k, *l);
-                }
-            });
+            egui::ComboBox::from_id_salt("link-s")
+                .selected_text([crate::i18n::text("ui.solid"), crate::i18n::text("ui.dashed"), crate::i18n::text("ui.underline")][style])
+                .show_ui(ui, |ui| {
+                    for (k, l) in
+                        [crate::i18n::text("ui.solid"), crate::i18n::text("ui.dashed"), crate::i18n::text("ui.underline")].iter().enumerate()
+                    {
+                        ui.selectable_value(&mut style, k, *l);
+                    }
+                });
             d.style.dashed = style == 1;
             d.style.underline = style == 2;
             ui.end_row();
-            ui.label("Color:");
+            ui.label(crate::i18n::text("ui.color"));
             if let Some(c) = crate::comments::swatch_grid(ui, Some(d.style.color)) {
                 d.style.color = c;
             }
@@ -245,34 +253,34 @@ pub(crate) fn body(ui: &mut egui::Ui, d: &mut LinkDraft, pages: usize, t: &Token
         }
     });
     ui.add_space(8.0);
-    widgets::section_title(ui, "Link Action");
-    ui.radio_value(&mut d.web, true, "Open a web page");
+    widgets::section_title(ui, crate::i18n::text("ui.link_action"));
+    ui.radio_value(&mut d.web, true, crate::i18n::text("ui.open_a_web_page"));
     ui.add_enabled_ui(d.web, |ui| {
         ui.horizontal(|ui| {
             ui.add_space(24.0);
             ui.add(egui::TextEdit::singleline(&mut d.url).desired_width(360.0).hint_text("https://example.org"));
         });
     });
-    ui.radio_value(&mut d.web, false, "Go to a page view");
+    ui.radio_value(&mut d.web, false, crate::i18n::text("ui.go_to_a_page_view"));
     ui.add_enabled_ui(!d.web, |ui| {
         ui.horizontal(|ui| {
             ui.add_space(24.0);
-            ui.label("Page");
+            ui.label(crate::i18n::text("ui.page"));
             ui.add(egui::DragValue::new(&mut d.target).range(1..=pages.max(1)));
-            ui.label(format!("of {pages}"));
+            ui.label(crate::msg!(of_value, pages = pages));
         });
     });
     let ok = !d.web || (d.url.trim().len() > 3 && d.url.trim() != "https://");
     if !ok {
-        ui.label(egui::RichText::new("Type the web address.").small().color(t.text_faint));
+        ui.label(egui::RichText::new(crate::i18n::text("ui.type_the_web_address")).small().color(t.text_faint));
     }
     ui.add_space(12.0);
     let (mut a, mut c) = (false, false);
     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-        if ui.add_enabled_ui(ok, |ui| widgets::pill_button(ui, "OK", true)).inner.clicked() {
+        if ui.add_enabled_ui(ok, |ui| widgets::pill_button(ui, crate::i18n::text("ui.ok"), true)).inner.clicked() {
             a = true;
         }
-        if widgets::pill_button(ui, "Cancel", false).clicked() {
+        if widgets::pill_button(ui, crate::i18n::text("ui.cancel"), false).clicked() {
             c = true;
         }
     });

@@ -1,6 +1,6 @@
 //! Create a PDF and Reduce File Size in the real shell.
 
-use printcraft_ui_egui::PrintCraftApp;
+mod support;
 
 fn png() -> Vec<u8> {
     let mut out = Vec::new();
@@ -16,7 +16,7 @@ fn png() -> Vec<u8> {
 
 #[test]
 fn opening_images_and_text_converts_them_to_new_pdfs() {
-    let mut app = PrintCraftApp::new();
+    let mut app = support::english_app();
     app.open_bytes("photo.png", Some("/tmp/photo.png".into()), png()).unwrap();
     app.open_bytes("notes.txt", None, b"first line\nsecond line".to_vec()).unwrap();
     app.create_from_images(vec![("a.png".into(), png()), ("b.png".into(), png())]);
@@ -36,7 +36,7 @@ fn reduce_file_size_writes_a_compact_copy() {
     let dir = std::env::temp_dir().join(format!("printcraft-reduce-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let out = dir.join("reduced.pdf");
-    let mut app = PrintCraftApp::new();
+    let mut app = support::english_app();
     app.open_bytes("notes.txt", None, "lorem ipsum ".repeat(500).into_bytes()).unwrap();
     app.save_override = Some(out.to_string_lossy().into_owned());
     assert!(app.execute("optimize.reduce"));
@@ -48,7 +48,7 @@ fn reduce_file_size_writes_a_compact_copy() {
 #[test]
 fn clipboard_images_and_text_become_new_pdfs() {
     use printcraft_ui_egui::Clip;
-    let mut app = PrintCraftApp::new();
+    let mut app = support::english_app();
     app.create_from_clip(Clip::Image { width: 40, height: 20, rgba: [10u8, 20, 30, 255].repeat(40 * 20) }).unwrap();
     app.create_from_clip(Clip::Text("Pasted\nlines".into())).unwrap();
     let docs = app.session.docs();
@@ -69,7 +69,7 @@ fn the_pdf_optimizer_dialog_saves_an_optimized_copy() {
     let out = dir.join("optimized.pdf");
     let out2 = out.clone();
     let mut h = Harness::builder().with_size(egui::vec2(1200.0, 800.0)).build_eframe(move |_cc| {
-        let mut app = PrintCraftApp::new();
+        let mut app = support::english_app();
         app.open_bytes("notes.txt", None, "lorem ipsum ".repeat(500).into_bytes()).unwrap();
         app.save_override = Some(out2.to_string_lossy().into_owned());
         app

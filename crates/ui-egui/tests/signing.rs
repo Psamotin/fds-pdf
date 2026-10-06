@@ -1,5 +1,7 @@
 //! Use a certificate in the real shell: draw a signature, create a digital ID, sign, validate.
 
+mod support;
+
 use egui::{Pos2, pos2};
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
@@ -29,7 +31,7 @@ fn dir() -> std::path::PathBuf {
 
 fn harness(dir: std::path::PathBuf) -> Harness<'static, PrintCraftApp> {
     let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(move |_cc| {
-        let mut app = PrintCraftApp::new();
+        let mut app = support::english_app();
         app.open_bytes("contract.pdf", None, FIXTURE.to_vec()).expect("opens");
         app.set_option("left", "closed").unwrap();
         app.export_dir_override = Some(dir.to_string_lossy().into_owned());
@@ -154,7 +156,7 @@ fn drawing_a_signature_creating_an_id_signing_and_trusting() {
     assert!(v.name.contains("signed version") && v.signatures.iter().any(|x| x.signed));
     // Trusted certificates and the ID list persist.
     let saved = s.persist();
-    let mut fresh = PrintCraftApp::new();
+    let mut fresh = support::english_app();
     fresh.restore(&saved);
     assert_eq!((fresh.digital_ids.len(), fresh.session.trusted_certificates().len()), (1, 1));
 }

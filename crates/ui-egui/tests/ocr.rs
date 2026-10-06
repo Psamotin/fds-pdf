@@ -1,10 +1,11 @@
 //! Scan & OCR ▸ Recognize text in the real shell (egui_kittest): the dialog, the run and its
 //! result (skipped without the OCR models: `cargo xtask models`).
 
+mod support;
+
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
 use printcraft_engine::{Session, export};
-use printcraft_ui_egui::PrintCraftApp;
 
 /// A one-page PDF that is only a picture of a sentence.
 fn scan() -> Vec<u8> {
@@ -18,7 +19,7 @@ fn scan() -> Vec<u8> {
 #[test]
 fn recognize_text_dialog_adds_searchable_text() {
     let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(|_cc| {
-        let mut app = PrintCraftApp::new();
+        let mut app = support::english_app();
         app.open_bytes("scan.pdf", None, scan()).unwrap();
         app.run_inline = true;
         app
@@ -51,7 +52,7 @@ fn recognize_text_in_multiple_files_writes_searchable_copies() {
     let dir = std::env::temp_dir().join(format!("printcraft-ocr-ui-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
-    let mut app = PrintCraftApp::new();
+    let mut app = support::english_app();
     app.run_inline = true;
     app.export_dir_override = Some(dir.to_string_lossy().into_owned());
     app.use_files(printcraft_ui_egui::FilePurpose::Ocr, vec![("one.pdf".into(), scan()), ("two.pdf".into(), scan())]);

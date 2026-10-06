@@ -1,5 +1,7 @@
 //! Headless UI tests (egui_kittest + AccessKit). They drive the real app shell without a window.
 
+mod support;
+
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
 use printcraft_ui_egui::PrintCraftApp;
@@ -19,7 +21,7 @@ trailer << /Root 1 0 R >>
 
 fn harness(setup: impl FnOnce(&mut PrintCraftApp) + 'static) -> Harness<'static, PrintCraftApp> {
     let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(move |_cc| {
-        let mut app = PrintCraftApp::new();
+        let mut app = support::english_app();
         setup(&mut app);
         app
     });
@@ -31,7 +33,7 @@ fn harness(setup: impl FnOnce(&mut PrintCraftApp) + 'static) -> Harness<'static,
 #[test]
 fn home_shows_welcome_and_tools() {
     let h = harness(|_| {});
-    h.get_by_label_contains("Welcome to PrintCraft");
+    h.get_by_label_contains("Welcome to FDS PDF");
     assert!(h.query_all_by_label("Organize pages").count() >= 2, "tool list + home card");
     h.get_by_label("Open file");
 }
@@ -59,7 +61,7 @@ fn opening_a_pdf_shows_comments_and_bookmarks() {
 
 #[test]
 fn garbage_input_is_rejected_without_panicking() {
-    let mut app = PrintCraftApp::new();
+    let mut app = support::english_app();
     assert!(app.open_bytes("junk.pdf", None, b"this is not a pdf".to_vec()).is_err());
     assert!(app.open_bytes("empty.pdf", None, Vec::new()).is_err());
     let mut truncated = FIXTURE.to_vec();
@@ -157,10 +159,10 @@ fn drag_selects_text_and_copy_returns_it() {
 
 #[test]
 fn persistence_round_trips_and_tolerates_garbage() {
-    let mut a = PrintCraftApp::new();
+    let mut a = support::english_app();
     a.theme = printcraft_ui_egui::theme::ThemeKind::Dark;
     let json = a.persist();
-    let mut b = PrintCraftApp::new();
+    let mut b = support::english_app();
     b.restore(&json);
     assert_eq!(b.theme, printcraft_ui_egui::theme::ThemeKind::Dark);
     b.restore("{not json");
@@ -231,7 +233,7 @@ impl egui::DroppedFile for Dropped {
 
 #[test]
 fn dropping_a_pdf_on_the_window_opens_it() {
-    let mut h = Harness::builder().with_size(egui::vec2(1200.0, 800.0)).build_eframe(|_cc| PrintCraftApp::new());
+    let mut h = Harness::builder().with_size(egui::vec2(1200.0, 800.0)).build_eframe(|_cc| support::english_app());
     h.run_steps(3);
     assert!(h.state().views.is_empty());
     let file: egui::DroppedFileHandle = std::sync::Arc::new(Dropped { path: "dropped.pdf".into(), bytes: FIXTURE.to_vec() });

@@ -58,14 +58,15 @@ pub(crate) fn create_body(ui: &mut egui::Ui, app: &mut PrintCraftApp, t: &Tokens
         c
     };
     let d = &mut app.stamp_draft;
-    ui.label(egui::RichText::new("Create Custom Stamp").font(theme::semibold(18.0)));
+    ui.label(egui::RichText::new(crate::i18n::text("ui.create_custom_stamp")).font(theme::semibold(18.0)));
     ui.add_space(8.0);
-    ui.label(egui::RichText::new(format!("From {}", d.file)).color(t.text_muted));
+    ui.label(egui::RichText::new(crate::msg!(from_value, d.file)).color(t.text_muted));
     ui.add_space(8.0);
     egui::Grid::new("stamp-create").num_columns(2).spacing([10.0, 8.0]).show(ui, |ui| {
-        let l = ui.label("Category:");
+        let l = ui.label(crate::i18n::text("ui.category"));
         ui.horizontal(|ui| {
-            ui.add(egui::TextEdit::singleline(&mut d.category).desired_width(200.0).hint_text("e.g. My stamps")).labelled_by(l.id);
+            ui.add(egui::TextEdit::singleline(&mut d.category).desired_width(200.0).hint_text(crate::i18n::text("ui.e_g_my_stamps")))
+                .labelled_by(l.id);
             if !categories.is_empty() {
                 egui::ComboBox::from_id_salt("stamp-categories").selected_text("").width(24.0).show_ui(ui, |ui| {
                     for c in &categories {
@@ -77,7 +78,7 @@ pub(crate) fn create_body(ui: &mut egui::Ui, app: &mut PrintCraftApp, t: &Tokens
             }
         });
         ui.end_row();
-        let l = ui.label("Name:");
+        let l = ui.label(crate::i18n::text("ui.name_2683ca"));
         ui.add(egui::TextEdit::singleline(&mut d.name).desired_width(200.0)).labelled_by(l.id);
         ui.end_row();
     });
@@ -85,10 +86,10 @@ pub(crate) fn create_body(ui: &mut egui::Ui, app: &mut PrintCraftApp, t: &Tokens
     let ok = !d.category.trim().is_empty() && !d.name.trim().is_empty();
     let (mut save, mut cancel) = (false, false);
     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-        if ui.add_enabled_ui(ok, |ui| widgets::pill_button(ui, "OK", true)).inner.clicked() {
+        if ui.add_enabled_ui(ok, |ui| widgets::pill_button(ui, crate::i18n::text("ui.ok"), true)).inner.clicked() {
             save = true;
         }
-        if widgets::pill_button(ui, "Cancel", false).clicked() {
+        if widgets::pill_button(ui, crate::i18n::text("ui.cancel"), false).clicked() {
             cancel = true;
         }
     });
@@ -97,7 +98,7 @@ pub(crate) fn create_body(ui: &mut egui::Ui, app: &mut PrintCraftApp, t: &Tokens
 
 /// The Custom stamps section of the stamps palette.
 pub(crate) fn palette_section(app: &mut PrintCraftApp, ui: &mut egui::Ui, t: &Tokens) {
-    widgets::section_title(ui, "Custom");
+    widgets::section_title(ui, crate::i18n::text("ui.custom_494ca7"));
     let mut remove = None;
     let mut categories: Vec<String> = app.custom_stamps.iter().map(|s| s.category.clone()).collect();
     categories.sort();
@@ -111,7 +112,7 @@ pub(crate) fn palette_section(app: &mut PrintCraftApp, ui: &mut egui::Ui, t: &To
                 app.quick_tool = QuickTool::CustomStamp(i);
             }
             resp.context_menu(|ui| {
-                if ui.button("Delete stamp").clicked() {
+                if ui.button(crate::i18n::text("ui.delete_stamp")).clicked() {
                     remove = Some(i);
                     ui.close();
                 }
@@ -123,7 +124,10 @@ pub(crate) fn palette_section(app: &mut PrintCraftApp, ui: &mut egui::Ui, t: &To
         app.quick_tool = QuickTool::Select;
     }
     ui.add_space(4.0);
-    if widgets::pill_button(ui, "Create custom stamp…", false).on_hover_text("From a PDF page or an image").clicked() {
+    if widgets::pill_button(ui, crate::i18n::text("ui.create_custom_stamp_d86b74"), false)
+        .on_hover_text(crate::i18n::text("ui.from_a_pdf_page_or_an_image"))
+        .clicked()
+    {
         app.pick_stamp_file();
     }
 }
@@ -131,14 +135,18 @@ pub(crate) fn palette_section(app: &mut PrintCraftApp, ui: &mut egui::Ui, t: &To
 impl PrintCraftApp {
     /// Create ▸ choose a PDF or an image for a new custom stamp.
     pub(crate) fn pick_stamp_file(&mut self) {
+        let _locale = crate::i18n::scope(self.language);
         #[cfg(not(target_arch = "wasm32"))]
         {
             let picked = match self.save_override.clone() {
                 Some(p) if [".png", ".jpg", ".pdf"].iter().any(|e| p.ends_with(e)) => Some(std::path::PathBuf::from(p)),
                 Some(_) => None,
                 None => rfd::FileDialog::new()
-                    .add_filter("PDF or image", &["pdf", "png", "jpg", "jpeg", "tif", "tiff", "gif", "bmp", "jp2", "j2k", "jpx"])
-                    .set_title("Select a file for the stamp")
+                    .add_filter(
+                        crate::i18n::text("ui.pdf_or_image"),
+                        &["pdf", "png", "jpg", "jpeg", "tif", "tiff", "gif", "bmp", "jp2", "j2k", "jpx"],
+                    )
+                    .set_title(crate::i18n::text("ui.select_a_file_for_the_stamp"))
                     .pick_file(),
             };
             let Some(path) = picked else { return };
@@ -147,27 +155,29 @@ impl PrintCraftApp {
                     let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
                     self.start_custom_stamp(name, bytes);
                 }
-                Err(e) => self.notify(format!("Couldn't read {}: {e}", path.display())),
+                Err(e) => self.notify(crate::msg!(couldn_t_read_value_value_decf41, path.display(), e = e)),
             }
         }
         #[cfg(target_arch = "wasm32")]
-        self.notify("Custom stamps arrive on the web with file pickers for images");
+        self.notify(crate::i18n::text("ui.custom_stamps_arrive_on_the_web_with_file_pickers_for_images"));
     }
 
     /// Open the Create Custom Stamp dialog for a file.
     pub fn start_custom_stamp(&mut self, file: String, bytes: Vec<u8>) {
+        let _locale = crate::i18n::scope(self.language);
         if bytes.len() > MAX_STAMP_BYTES {
-            self.notify(format!("{file} is too large for a stamp (at most {} MB)", MAX_STAMP_BYTES >> 20));
+            self.notify(crate::msg!(value_is_too_large_for_a_stamp_at_most_value_mb, MAX_STAMP_BYTES >> 20, file = file));
             return;
         }
         let name = file.rsplit_once('.').map_or(file.as_str(), |(s, _)| s).to_string();
-        let category = self.custom_stamps.last().map(|s| s.category.clone()).unwrap_or_else(|| "My stamps".into());
+        let category = self.custom_stamps.last().map(|s| s.category.clone()).unwrap_or_else(|| crate::i18n::text("ui.my_stamps").into());
         self.stamp_draft = crate::stamps_ui::StampDraft { file, data: Arc::new(bytes), category, name };
         self.dialog = Some(Dialog::CreateStamp);
     }
 
     /// Save the dialog's stamp in the library and choose it.
     pub(crate) fn save_custom_stamp(&mut self) {
+        let _locale = crate::i18n::scope(self.language);
         let d = std::mem::take(&mut self.stamp_draft);
         self.custom_stamps.push(CustomStamp { category: d.category.trim().into(), name: d.name.trim().into(), file: d.file, page: 0, data: d.data });
         self.quick_tool = QuickTool::CustomStamp(self.custom_stamps.len() - 1);

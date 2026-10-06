@@ -79,14 +79,14 @@ impl FillTool {
 
     pub fn label(self) -> &'static str {
         match self {
-            FillTool::Text => "Add text",
-            FillTool::Check => "Checkmark",
-            FillTool::Cross => "Cross",
-            FillTool::Dot => "Dot",
-            FillTool::Line => "Line",
-            FillTool::Date => "Date",
-            FillTool::Signature => "Sign",
-            FillTool::Initials => "Initials",
+            FillTool::Text => crate::i18n::text("ui.add_text"),
+            FillTool::Check => crate::i18n::text("ui.checkmark"),
+            FillTool::Cross => crate::i18n::text("ui.cross"),
+            FillTool::Dot => crate::i18n::text("ui.dot"),
+            FillTool::Line => crate::i18n::text("ui.line"),
+            FillTool::Date => crate::i18n::text("ui.date_99c40a"),
+            FillTool::Signature => crate::i18n::text("ui.sign"),
+            FillTool::Initials => crate::i18n::text("ui.initials"),
         }
     }
 
@@ -288,7 +288,7 @@ pub(crate) fn type_box(ctx: &egui::Context, view: &mut DocView, info: &DocInfo, 
                 .desired_width(width)
                 .background_color(Color32::from_rgba_unmultiplied(255, 255, 255, 230))
                 .text_color(Color32::BLACK)
-                .hint_text("Type text")
+                .hint_text(crate::i18n::text("ui.type_text"))
                 .id_salt("fill-text-edit"),
         );
         if t.focus {
@@ -317,20 +317,24 @@ pub(crate) fn type_box(ctx: &egui::Context, view: &mut DocView, info: &DocInfo, 
 /// The signature pad: draw with the pointer; returns the strokes (normalised) on Apply.
 pub(crate) fn signature_pad(ui: &mut egui::Ui, t: &Tokens, d: &mut SigDraft, preview: &mut Option<(String, egui::TextureHandle)>) -> (bool, bool) {
     let what = if d.initials { "initials" } else { "signature" };
-    ui.label(egui::RichText::new(format!("Create {what}")).font(crate::theme::semibold(18.0)));
+    ui.label(egui::RichText::new(crate::msg!(create_value, what = what)).font(crate::theme::semibold(18.0)));
     ui.horizontal(|ui| {
-        if crate::widgets::pill_button(ui, "Type", !d.drawing).clicked() {
+        if crate::widgets::pill_button(ui, crate::i18n::text("ui.type"), !d.drawing).clicked() {
             d.drawing = false;
         }
-        if crate::widgets::pill_button(ui, "Draw", d.drawing).clicked() {
+        if crate::widgets::pill_button(ui, crate::i18n::text("ui.draw"), d.drawing).clicked() {
             d.drawing = true;
         }
     });
     ui.add_space(6.0);
     if !d.drawing {
-        let l = ui.label(egui::RichText::new(format!("Type your {what}.")).color(t.text_muted));
-        ui.add(egui::TextEdit::singleline(&mut d.text).desired_width(460.0).hint_text(if d.initials { "Initials" } else { "Your name" }))
-            .labelled_by(l.id);
+        let l = ui.label(egui::RichText::new(crate::msg!(type_your_value, what = what)).color(t.text_muted));
+        ui.add(egui::TextEdit::singleline(&mut d.text).desired_width(460.0).hint_text(if d.initials {
+            crate::i18n::text("ui.initials")
+        } else {
+            crate::i18n::text("ui.your_name")
+        }))
+        .labelled_by(l.id);
         let (rect, _) = ui.allocate_exact_size(vec2(460.0, 150.0), Sense::hover());
         let painter = ui.painter_at(rect);
         painter.rect_filled(rect, CornerRadius::same(6), Color32::WHITE);
@@ -344,7 +348,7 @@ pub(crate) fn signature_pad(ui: &mut egui::Ui, t: &Tokens, d: &mut SigDraft, pre
         }
         return pad_buttons(ui, d);
     }
-    ui.label(egui::RichText::new(format!("Draw your {what} below.")).color(t.text_muted));
+    ui.label(egui::RichText::new(crate::msg!(draw_your_value_below, what = what)).color(t.text_muted));
     let strokes = &mut d.strokes;
     let (rect, resp) = ui.allocate_exact_size(vec2(460.0, 150.0), Sense::drag());
     let painter = ui.painter_at(rect);
@@ -375,16 +379,16 @@ fn pad_buttons(ui: &mut egui::Ui, d: &mut SigDraft) -> (bool, bool) {
     ui.add_space(10.0);
     let (mut apply, mut cancel) = (false, false);
     ui.horizontal(|ui| {
-        if ui.button("Clear").clicked() {
+        if ui.button(crate::i18n::text("ui.clear")).clicked() {
             d.strokes.clear();
             d.text.clear();
         }
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             let ready = d.ready();
-            if ui.add_enabled_ui(ready, |ui| crate::widgets::pill_button(ui, "Apply", true)).inner.clicked() {
+            if ui.add_enabled_ui(ready, |ui| crate::widgets::pill_button(ui, crate::i18n::text("ui.apply"), true)).inner.clicked() {
                 apply = true;
             }
-            if crate::widgets::pill_button(ui, "Cancel", false).clicked() {
+            if crate::widgets::pill_button(ui, crate::i18n::text("ui.cancel"), false).clicked() {
                 cancel = true;
             }
         });

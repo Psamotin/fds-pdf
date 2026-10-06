@@ -7,17 +7,24 @@
 
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
-    println!("cargo:rerun-if-changed=../../assets/app-icon/printcraft.ico");
+    println!("cargo:rerun-if-changed=../../assets/fds-pdf/fds-pdf.ico");
     println!("cargo:rerun-if-env-changed=PRINTCRAFT_REQUIRE_WINRES");
     if std::env::var("CARGO_CFG_TARGET_OS").as_deref() != Ok("windows") {
         return;
     }
     let mut res = winresource::WindowsResource::new();
-    res.set_icon("../../assets/app-icon/printcraft.ico")
-        .set("ProductName", "PrintCraft")
-        .set("FileDescription", "PrintCraft PDF workbench")
+    // The upstream brand icon is never embedded into the corporate build.
+    // The resource compiler supplies version information even before an FDS icon is approved.
+    let icon = "../../assets/fds-pdf/fds-pdf.ico";
+    if std::path::Path::new(icon).is_file() {
+        res.set_icon(icon);
+    }
+    res.set("ProductName", "ФДС ПДФ")
+        .set("FileDescription", "ФДС ПДФ — работа с PDF")
+        .set("ProductVersion", env!("CARGO_PKG_VERSION"))
+        .set("FileVersion", env!("CARGO_PKG_VERSION"))
         .set("LegalCopyright", "Copyright (c) the PrintCraft contributors. MIT OR Apache-2.0.")
-        .set("OriginalFilename", "printcraft.exe")
+        .set("OriginalFilename", "FDS-PDF.exe")
         .set("InternalName", "printcraft");
     if let Err(e) = res.compile() {
         if std::env::var_os("PRINTCRAFT_REQUIRE_WINRES").is_some() {

@@ -106,12 +106,12 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PrintCraftApp, t: &Tokens) -> (b
         };
         d.seeded = Some((current, d.which));
     }
-    ui.label(egui::RichText::new("Set Page Boxes").font(theme::semibold(18.0)));
+    ui.label(egui::RichText::new(crate::i18n::text("ui.set_page_boxes")).font(theme::semibold(18.0)));
     ui.add_space(8.0);
     ui.horizontal_top(|ui| {
         ui.vertical(|ui| {
             egui::Grid::new("boxes-grid").num_columns(2).spacing([12.0, 8.0]).show(ui, |ui| {
-                ui.label("Box");
+                ui.label(crate::i18n::text("ui.box"));
                 let names = [
                     (PageBox::Crop, "CropBox"),
                     (PageBox::Trim, "TrimBox"),
@@ -126,7 +126,7 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PrintCraftApp, t: &Tokens) -> (b
                     }
                 });
                 ui.end_row();
-                ui.label("Units");
+                ui.label(crate::i18n::text("ui.units"));
                 egui::ComboBox::from_id_salt("boxes-unit").selected_text(d.unit.label()).show_ui(ui, |ui| {
                     for u in [Unit::Inches, Unit::Millimetres, Unit::Points] {
                         ui.selectable_value(&mut d.unit, u, u.label());
@@ -134,7 +134,12 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PrintCraftApp, t: &Tokens) -> (b
                 });
                 ui.end_row();
                 let k = d.unit.per_point();
-                for (label, idx) in [("Top", 3), ("Bottom", 1), ("Left", 0), ("Right", 2)] {
+                for (label, idx) in [
+                    (crate::i18n::text("ui.top"), 3),
+                    (crate::i18n::text("ui.bottom"), 1),
+                    (crate::i18n::text("ui.left"), 0),
+                    (crate::i18n::text("ui.right"), 2),
+                ] {
                     let l = ui.label(label);
                     let mut v = d.margins[idx] * k;
                     let speed = if d.unit == Unit::Inches { 0.01 } else { 0.5 };
@@ -147,25 +152,25 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PrintCraftApp, t: &Tokens) -> (b
                     ui.end_row();
                 }
                 ui.label("");
-                if ui.button("Set to zero").clicked() {
+                if ui.button(crate::i18n::text("ui.set_to_zero")).clicked() {
                     d.margins = [0.0; 4];
                 }
                 ui.end_row();
-                ui.label("Pages");
+                ui.label(crate::i18n::text("ui.pages"));
                 ui.vertical(|ui| {
-                    ui.radio_value(&mut d.range, Range::All, "All");
-                    ui.radio_value(&mut d.range, Range::Current, format!("Current page ({})", current + 1));
+                    ui.radio_value(&mut d.range, Range::All, crate::i18n::text("ui.all"));
+                    ui.radio_value(&mut d.range, Range::Current, crate::msg!(current_page_value, current + 1));
                     let (mut a, mut b) = match d.range {
                         Range::Pages(a, b) => (a, b),
                         _ => (1, count),
                     };
                     ui.horizontal(|ui| {
                         let on = matches!(d.range, Range::Pages(..));
-                        if ui.radio(on, "From").clicked() {
+                        if ui.radio(on, crate::i18n::text("ui.from")).clicked() {
                             d.range = Range::Pages(a, b);
                         }
                         let ra = ui.add(egui::DragValue::new(&mut a).range(1..=count));
-                        ui.label("to");
+                        ui.label(crate::i18n::text("ui.to_663ea1"));
                         let rb = ui.add(egui::DragValue::new(&mut b).range(1..=count));
                         if ra.changed() || rb.changed() {
                             d.range = Range::Pages(a.min(b), b.max(a));
@@ -193,7 +198,7 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PrintCraftApp, t: &Tokens) -> (b
             ui.painter().text(
                 page.center_bottom() + vec2(0.0, 6.0),
                 egui::Align2::CENTER_TOP,
-                format!("Page {}", current + 1),
+                crate::msg!(page_value_4f9c8e, current + 1),
                 theme::regular(11.0),
                 t.text_faint,
             );
@@ -202,10 +207,10 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PrintCraftApp, t: &Tokens) -> (b
     ui.add_space(12.0);
     let (mut apply, mut cancel) = (false, false);
     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-        if widgets::pill_button(ui, "OK", true).clicked() {
+        if widgets::pill_button(ui, crate::i18n::text("ui.ok"), true).clicked() {
             apply = true;
         }
-        if widgets::pill_button(ui, "Cancel", false).clicked() {
+        if widgets::pill_button(ui, crate::i18n::text("ui.cancel"), false).clicked() {
             cancel = true;
         }
     });

@@ -282,7 +282,7 @@ pub(crate) fn editor(ctx: &egui::Context, view: &mut DocView, info: &DocInfo, ad
                 .desired_rows(1)
                 .background_color(Color32::from_rgba_unmultiplied(255, 255, 255, 235))
                 .text_color(Color32::from_rgb(cr, cg, cb))
-                .hint_text("Type text")
+                .hint_text(crate::i18n::text("ui.type_text"))
                 .id_salt("added-text-edit"),
         );
         if t.focus {
@@ -323,7 +323,7 @@ pub(crate) fn editor(ctx: &egui::Context, view: &mut DocView, info: &DocInfo, ad
 /// Returns the changed style; for a selected item the caller turns it into an update.
 pub(crate) fn format_panel(ui: &mut egui::Ui, t: &Tokens, style: &AddedText) -> Option<AddedText> {
     let mut s = style.clone();
-    widgets::section_title(ui, "Format text");
+    widgets::section_title(ui, crate::i18n::text("ui.format_text"));
     ui.horizontal(|ui| {
         egui::ComboBox::from_id_salt("font-family").selected_text(s.family.label()).width(110.0).show_ui(ui, |ui| {
             for f in [FontFamily::Helvetica, FontFamily::Times, FontFamily::Courier] {
@@ -331,25 +331,25 @@ pub(crate) fn format_panel(ui: &mut egui::Ui, t: &Tokens, style: &AddedText) -> 
             }
         });
         // A list rather than a drag value: every change is an undo step.
-        egui::ComboBox::from_id_salt("font-size").selected_text(format!("{} pt", s.size)).width(70.0).show_ui(ui, |ui| {
+        egui::ComboBox::from_id_salt("font-size").selected_text(crate::msg!(value_pt, s.size)).width(70.0).show_ui(ui, |ui| {
             for size in [8.0, 9.0, 10.0, 11.0, 12.0, 14.0, 16.0, 18.0, 20.0, 24.0, 28.0, 36.0, 48.0, 72.0] {
-                ui.selectable_value(&mut s.size, size, format!("{size} pt"));
+                ui.selectable_value(&mut s.size, size, crate::msg!(value_pt_d169c6, size = size));
             }
         });
     });
     ui.horizontal(|ui| {
-        if ui.selectable_label(s.bold, egui::RichText::new("B").strong()).on_hover_text("Bold").clicked() {
+        if ui.selectable_label(s.bold, egui::RichText::new("B").strong()).on_hover_text(crate::i18n::text("ui.bold")).clicked() {
             s.bold = !s.bold;
         }
-        if ui.selectable_label(s.italic, egui::RichText::new("I").italics()).on_hover_text("Italic").clicked() {
+        if ui.selectable_label(s.italic, egui::RichText::new("I").italics()).on_hover_text(crate::i18n::text("ui.italic")).clicked() {
             s.italic = !s.italic;
         }
         ui.separator();
         for (a, icon, tip) in [
-            (TextAlign::Left, "align-left", "Align left"),
-            (TextAlign::Center, "align-center", "Centre"),
-            (TextAlign::Right, "align-right", "Align right"),
-            (TextAlign::Justify, "align-justify", "Justify"),
+            (TextAlign::Left, "align-left", crate::i18n::text("ui.align_left")),
+            (TextAlign::Center, "align-center", crate::i18n::text("ui.centre")),
+            (TextAlign::Right, "align-right", crate::i18n::text("ui.align_right")),
+            (TextAlign::Justify, "align-justify", crate::i18n::text("ui.justify")),
         ] {
             if crate::icons::button(ui, icon, 26.0, s.align == a, tip).clicked() {
                 s.align = a;
@@ -360,16 +360,18 @@ pub(crate) fn format_panel(ui: &mut egui::Ui, t: &Tokens, style: &AddedText) -> 
     if let Some(picked) = crate::comments::swatch_grid(ui, Some(c)) {
         s.color = picked;
     }
-    ui.label(egui::RichText::new("Standard fonts; text outside Windows-1252 isn't supported yet.").small().color(t.text_faint));
+    ui.label(egui::RichText::new(crate::i18n::text("ui.standard_fonts_text_outside_windows_1252_isn_t_supported_yet")).small().color(t.text_faint));
     (s != *style).then_some(s)
 }
 
 /// How to use the tools, under the Add content list.
 pub(crate) fn hint(ui: &mut egui::Ui, t: &Tokens) {
     ui.label(
-        egui::RichText::new("Click on the page to add text. Drag items to move them, drag a corner to resize, double-click text to edit it.")
-            .small()
-            .color(t.text_faint),
+        egui::RichText::new(crate::i18n::text(
+            "ui.click_on_the_page_to_add_text_drag_items_to_move_them_drag_a_corner_to_resize_double_click_text_to_edit_it",
+        ))
+        .small()
+        .color(t.text_faint),
     );
     ui.add_space(4.0);
 }
@@ -377,6 +379,7 @@ pub(crate) fn hint(ui: &mut egui::Ui, t: &Tokens) {
 impl crate::PrintCraftApp {
     /// Edit a PDF ▸ Add content ▸ Image: pick a file and place it in the middle of the current page.
     pub fn add_image_dialog(&mut self) {
+        let _locale = crate::i18n::scope(self.language);
         #[cfg(not(target_arch = "wasm32"))]
         {
             let picked = match self.save_override.clone() {
@@ -384,8 +387,8 @@ impl crate::PrintCraftApp {
                 // Tests and automation set `save_override` and never see a native dialog.
                 Some(_) => None,
                 None => rfd::FileDialog::new()
-                    .add_filter("Images", &["png", "jpg", "jpeg", "tif", "tiff", "gif", "bmp", "jp2", "j2k", "jpx"])
-                    .set_title("Choose an image")
+                    .add_filter(crate::i18n::text("ui.images"), &["png", "jpg", "jpeg", "tif", "tiff", "gif", "bmp", "jp2", "j2k", "jpx"])
+                    .set_title(crate::i18n::text("ui.choose_an_image"))
                     .pick_file(),
             };
             let Some(path) = picked else { return };
@@ -394,23 +397,24 @@ impl crate::PrintCraftApp {
                     let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
                     self.add_image(name, bytes);
                 }
-                Err(e) => self.notify(format!("Couldn't read {}: {e}", path.display())),
+                Err(e) => self.notify(crate::msg!(couldn_t_read_value_value_decf41, path.display(), e = e)),
             }
         }
         #[cfg(target_arch = "wasm32")]
-        self.notify("Adding images arrives on the web with file pickers for images");
+        self.notify(crate::i18n::text("ui.adding_images_arrives_on_the_web_with_file_pickers_for_images"));
     }
 
     /// Edit text & images ▸ Replace Image: pick a file to draw in a page image's place.
     pub(crate) fn replace_page_image_dialog(&mut self, page: usize, index: usize) {
+        let _locale = crate::i18n::scope(self.language);
         #[cfg(not(target_arch = "wasm32"))]
         {
             let picked = match self.save_override.clone() {
                 Some(p) if p.ends_with(".png") || p.ends_with(".jpg") => Some(std::path::PathBuf::from(p)),
                 Some(_) => None,
                 None => rfd::FileDialog::new()
-                    .add_filter("Images", &["png", "jpg", "jpeg", "tif", "tiff", "gif", "bmp", "jp2", "j2k", "jpx"])
-                    .set_title("Replace image")
+                    .add_filter(crate::i18n::text("ui.images"), &["png", "jpg", "jpeg", "tif", "tiff", "gif", "bmp", "jp2", "j2k", "jpx"])
+                    .set_title(crate::i18n::text("ui.replace_image"))
                     .pick_file(),
             };
             let Some(path) = picked else { return };
@@ -423,36 +427,41 @@ impl crate::PrintCraftApp {
                         change: printcraft_engine::ImageEdit::Replace { name, bytes: std::sync::Arc::new(bytes) },
                     });
                 }
-                Err(e) => self.notify(format!("Couldn't read {}: {e}", path.display())),
+                Err(e) => self.notify(crate::msg!(couldn_t_read_value_value_decf41, path.display(), e = e)),
             }
         }
         #[cfg(target_arch = "wasm32")]
-        self.notify(format!("Replacing images on page {} arrives on the web with image pickers ({index})", page + 1));
+        self.notify(crate::msg!(replacing_images_on_page_value_arrives_on_the_web_with_image_pickers_value, page + 1, index = index));
     }
 
     /// Edit text & images ▸ Save Image As.
     pub(crate) fn save_page_image(&mut self, page: usize, index: usize) {
+        let _locale = crate::i18n::scope(self.language);
         let Some((_, id)) = self.active_ids() else { return };
         let file = self.session.get(id).map(|d| d.page_image_file(page, index));
         match file {
             Some(Ok((ext, bytes))) => {
-                self.write_files(&[(format!("Image page {} #{}.{ext}", page + 1, index + 1), std::sync::Arc::new(bytes))], "Save image");
+                self.write_files(
+                    &[(format!("Image page {} #{}.{ext}", page + 1, index + 1), std::sync::Arc::new(bytes))],
+                    crate::i18n::text("ui.save_image"),
+                );
             }
-            Some(Err(e)) => self.notify(format!("Couldn't save the image: {e}")),
+            Some(Err(e)) => self.notify(crate::msg!(couldn_t_save_the_image_value, e = e)),
             None => {}
         }
     }
 
     /// Click an image field: pick a picture for it.
     pub fn choose_field_image(&mut self, name: &str) {
+        let _locale = crate::i18n::scope(self.language);
         #[cfg(not(target_arch = "wasm32"))]
         {
             let picked = match self.save_override.clone() {
                 Some(p) if p.ends_with(".png") || p.ends_with(".jpg") => Some(std::path::PathBuf::from(p)),
                 Some(_) => None,
                 None => rfd::FileDialog::new()
-                    .add_filter("Images", &["png", "jpg", "jpeg", "tif", "tiff", "gif", "bmp", "jp2", "j2k", "jpx"])
-                    .set_title("Select Icon")
+                    .add_filter(crate::i18n::text("ui.images"), &["png", "jpg", "jpeg", "tif", "tiff", "gif", "bmp", "jp2", "j2k", "jpx"])
+                    .set_title(crate::i18n::text("ui.select_icon"))
                     .pick_file(),
             };
             let Some(path) = picked else { return };
@@ -460,23 +469,24 @@ impl crate::PrintCraftApp {
                 Ok(bytes) => {
                     self.apply_edit(Edit::SetFieldImage { name: name.to_string(), image: std::sync::Arc::new(bytes) });
                 }
-                Err(e) => self.notify(format!("Couldn't read {}: {e}", path.display())),
+                Err(e) => self.notify(crate::msg!(couldn_t_read_value_value_decf41, path.display(), e = e)),
             }
         }
         #[cfg(target_arch = "wasm32")]
-        self.notify(format!("{name}: choosing images arrives on the web with file pickers for images"));
+        self.notify(crate::msg!(value_choosing_images_arrives_on_the_web_with_file_pickers_for_images, name = name));
     }
 
     /// Edit image ▸ Replace: pick a file for the selected image.
     pub fn replace_image_dialog(&mut self, page: usize, index: usize) {
+        let _locale = crate::i18n::scope(self.language);
         #[cfg(not(target_arch = "wasm32"))]
         {
             let picked = match self.save_override.clone() {
                 Some(p) if p.ends_with(".png") || p.ends_with(".jpg") => Some(std::path::PathBuf::from(p)),
                 Some(_) => None,
                 None => rfd::FileDialog::new()
-                    .add_filter("Images", &["png", "jpg", "jpeg", "tif", "tiff", "gif", "bmp", "jp2", "j2k", "jpx"])
-                    .set_title("Replace image")
+                    .add_filter(crate::i18n::text("ui.images"), &["png", "jpg", "jpeg", "tif", "tiff", "gif", "bmp", "jp2", "j2k", "jpx"])
+                    .set_title(crate::i18n::text("ui.replace_image"))
                     .pick_file(),
             };
             let Some(path) = picked else { return };
@@ -485,18 +495,19 @@ impl crate::PrintCraftApp {
                     let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
                     self.apply_edit(Edit::ReplaceImage { page, index, name, bytes: std::sync::Arc::new(bytes) });
                 }
-                Err(e) => self.notify(format!("Couldn't read {}: {e}", path.display())),
+                Err(e) => self.notify(crate::msg!(couldn_t_read_value_value_decf41, path.display(), e = e)),
             }
         }
         #[cfg(target_arch = "wasm32")]
         {
             let _ = (page, index);
-            self.notify("Replacing images arrives on the web with image file pickers");
+            self.notify(crate::i18n::text("ui.replacing_images_arrives_on_the_web_with_image_file_pickers"));
         }
     }
 
     /// Place image `bytes` in the middle of the current page and select it.
     pub fn add_image(&mut self, name: String, bytes: Vec<u8>) {
+        let _locale = crate::i18n::scope(self.language);
         let Some((i, id)) = self.active_ids() else { return };
         let page = self.views[i].current;
         let before = self.session.get(id).map_or(0, |d| d.added.iter().filter(|a| a.page == page).count());
@@ -517,7 +528,7 @@ pub(crate) enum ImageAction {
 /// Edit image: rotate, flip, crop, replace (shown while an added image is selected).
 pub(crate) fn image_panel(ui: &mut egui::Ui, t: &Tokens, img: &printcraft_engine::AddedImage) -> Option<ImageAction> {
     let mut out = None;
-    widgets::section_title(ui, "Edit image");
+    widgets::section_title(ui, crate::i18n::text("ui.edit_image"));
     ui.horizontal(|ui| {
         let mut i = img.clone();
         let r = i.rect;
@@ -527,27 +538,27 @@ pub(crate) fn image_panel(ui: &mut egui::Ui, t: &Tokens, img: &printcraft_engine
             let (cx, cy, w, h) = ((r[0] + r[2]) / 2.0, (r[1] + r[3]) / 2.0, r[2] - r[0], r[3] - r[1]);
             i.rect = [cx - h / 2.0, cy - w / 2.0, cx + h / 2.0, cy + w / 2.0];
         };
-        if crate::icons::button(ui, "rotate-ccw", 28.0, false, "Rotate counterclockwise").clicked() {
+        if crate::icons::button(ui, "rotate-ccw", 28.0, false, crate::i18n::text("ui.rotate_counterclockwise")).clicked() {
             turn(&mut i, 1);
             out = Some(ImageAction::Update(AddedContent::Image(i.clone())));
         }
-        if crate::icons::button(ui, "rotate-cw", 28.0, false, "Rotate clockwise").clicked() {
+        if crate::icons::button(ui, "rotate-cw", 28.0, false, crate::i18n::text("ui.rotate_clockwise")).clicked() {
             turn(&mut i, 3);
             out = Some(ImageAction::Update(AddedContent::Image(i.clone())));
         }
-        if crate::icons::button(ui, "flip-horizontal-2", 28.0, false, "Flip horizontal").clicked() {
+        if crate::icons::button(ui, "flip-horizontal-2", 28.0, false, crate::i18n::text("ui.flip_horizontal")).clicked() {
             i.flip_h = !i.flip_h;
             out = Some(ImageAction::Update(AddedContent::Image(i.clone())));
         }
-        if crate::icons::button(ui, "flip-vertical-2", 28.0, false, "Flip vertical").clicked() {
+        if crate::icons::button(ui, "flip-vertical-2", 28.0, false, crate::i18n::text("ui.flip_vertical")).clicked() {
             i.flip_v = !i.flip_v;
             out = Some(ImageAction::Update(AddedContent::Image(i.clone())));
         }
-        if crate::icons::button(ui, "replace", 28.0, false, "Replace image").clicked() {
+        if crate::icons::button(ui, "replace", 28.0, false, crate::i18n::text("ui.replace_image")).clicked() {
             out = Some(ImageAction::Replace);
         }
     });
-    ui.label(egui::RichText::new("Crop (% trimmed from each side)").small().color(t.text_muted));
+    ui.label(egui::RichText::new(crate::i18n::text("ui.crop_trimmed_from_each_side")).small().color(t.text_muted));
     let mut crop = img.crop.map(|v| (v * 100.0).round());
     let mut changed = false;
     ui.horizontal(|ui| {

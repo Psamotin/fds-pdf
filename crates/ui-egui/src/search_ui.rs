@@ -14,9 +14,14 @@ pub(crate) fn panel(ui: &mut egui::Ui, t: &Tokens, view: &mut DocView, pages: us
     let searched = view.texts.len() + view.text_failed.len();
     let Some(find) = view.find.as_mut() else { return };
     find.in_panel = true;
-    let l = ui.label(egui::RichText::new("What word or phrase would you like to search for?").color(t.text_muted));
+    let l = ui.label(egui::RichText::new(crate::i18n::text("ui.what_word_or_phrase_would_you_like_to_search_for")).color(t.text_muted));
     let r = ui
-        .add(egui::TextEdit::singleline(&mut find.query).id(egui::Id::new("search-panel-input")).hint_text("Search").desired_width(f32::INFINITY))
+        .add(
+            egui::TextEdit::singleline(&mut find.query)
+                .id(egui::Id::new("search-panel-input"))
+                .hint_text(crate::i18n::text("ui.search"))
+                .desired_width(f32::INFINITY),
+        )
         .labelled_by(l.id);
     if find.focus {
         r.request_focus();
@@ -27,8 +32,8 @@ pub(crate) fn panel(ui: &mut egui::Ui, t: &Tokens, view: &mut DocView, pages: us
         let w = &mut ui.visuals_mut().widgets;
         w.inactive.bg_stroke = egui::Stroke::new(1.0, t.border);
         w.inactive.bg_fill = t.hover;
-        let a = ui.checkbox(&mut find.whole_words, "Whole words only").changed();
-        let b = ui.checkbox(&mut find.case_sensitive, "Case-sensitive").changed();
+        let a = ui.checkbox(&mut find.whole_words, crate::i18n::text("ui.whole_words_only")).changed();
+        let b = ui.checkbox(&mut find.case_sensitive, crate::i18n::text("ui.case_sensitive")).changed();
         if a || b {
             find.case_query.clear();
         }
@@ -41,11 +46,12 @@ pub(crate) fn panel(ui: &mut egui::Ui, t: &Tokens, view: &mut DocView, pages: us
     let status = if find.query.trim().is_empty() {
         String::new()
     } else if find.matches.is_empty() && searched < pages {
-        format!("Searching… {searched} of {pages} pages")
+        crate::msg!(searching_value_of_value_pages, searched = searched, pages = pages)
     } else {
         let n = find.matches.len();
-        let more = if searched < pages { format!(" (searching… {searched} of {pages} pages)") } else { String::new() };
-        format!("{n} instance{}{more}", if n == 1 { "" } else { "s" })
+        let more =
+            if searched < pages { crate::msg!(searching_value_of_value_pages_34ed86, searched = searched, pages = pages) } else { String::new() };
+        crate::msg!(value_instance_value_value, crate::i18n::plural_suffix(n), more = more, n = n)
     };
     ui.label(egui::RichText::new(status).font(theme::semibold(12.5)));
     ui.add_space(4.0);
@@ -54,7 +60,7 @@ pub(crate) fn panel(ui: &mut egui::Ui, t: &Tokens, view: &mut DocView, pages: us
     for (i, (p, range)) in find.matches.iter().enumerate().take(2000) {
         if last_page != Some(*p) {
             ui.add_space(4.0);
-            ui.label(egui::RichText::new(format!("Page {}", p + 1)).small().color(t.text_faint));
+            ui.label(egui::RichText::new(crate::msg!(page_value_4f9c8e, p + 1)).small().color(t.text_faint));
             last_page = Some(*p);
         }
         let Some(text) = view.texts.get(p) else { continue };
@@ -80,7 +86,7 @@ pub(crate) fn panel(ui: &mut egui::Ui, t: &Tokens, view: &mut DocView, pages: us
         job.append(&format!(" {}…", flat(after)), 0.0, plain);
         job.wrap.max_width = ui.available_width();
         let selected = find.current == Some(i);
-        let resp = ui.add(egui::Button::selectable(selected, job).wrap()).on_hover_text("Go to this result");
+        let resp = ui.add(egui::Button::selectable(selected, job).wrap()).on_hover_text(crate::i18n::text("ui.go_to_this_result"));
         if resp.clicked() {
             go = Some(i);
         }

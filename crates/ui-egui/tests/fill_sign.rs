@@ -1,5 +1,7 @@
 //! Fill & Sign in the real shell (egui_kittest): text, marks, date and a drawn signature.
 
+mod support;
+
 use egui::{Pos2, pos2};
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
@@ -14,7 +16,7 @@ trailer << /Root 1 0 R >>
 
 fn harness() -> Harness<'static, PrintCraftApp> {
     let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(|_cc| {
-        let mut app = PrintCraftApp::new();
+        let mut app = support::english_app();
         app.open_bytes("form.pdf", None, FIXTURE.to_vec()).unwrap();
         app.set_option("left", "closed").unwrap();
         app.set_option("zoom", "150").unwrap();
@@ -96,7 +98,7 @@ fn signing_draws_a_signature_once_and_places_it() {
     assert!(items(&h).iter().any(|(t, _)| t == "Ink"));
     // The signature is remembered (persisted with the app's settings).
     let saved = h.state().persist();
-    let mut again = PrintCraftApp::new();
+    let mut again = support::english_app();
     again.restore(&saved);
     assert!(again.signature.is_some());
 }
@@ -126,7 +128,7 @@ fn typed_signatures_and_initials() {
     assert_eq!(items(&h).iter().filter(|(t, _)| t == "Stamp").count(), 2);
     // Both are remembered.
     let saved = h.state().persist();
-    let mut again = PrintCraftApp::new();
+    let mut again = support::english_app();
     again.restore(&saved);
     assert_eq!(again.signature, h.state().signature);
     assert_eq!(again.initials, Some(printcraft_ui_egui::fill_sign::SavedSig::Typed("GH".into())));

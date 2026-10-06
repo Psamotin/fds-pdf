@@ -43,24 +43,24 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PrintCraftApp, t: &Tokens, kind:
     let d = &mut app.export_draft;
     ui.label(
         egui::RichText::new(match kind {
-            ExportKind::Image => "Export to Image",
-            ExportKind::Text => "Export to Text",
-            ExportKind::AllImages => "Export All Images",
+            ExportKind::Image => crate::i18n::text("ui.export_to_image"),
+            ExportKind::Text => crate::i18n::text("ui.export_to_text"),
+            ExportKind::AllImages => crate::i18n::text("ui.export_all_images"),
         })
         .font(theme::semibold(18.0)),
     );
     ui.add_space(8.0);
     if kind == ExportKind::Image {
         ui.horizontal(|ui| {
-            ui.label("Resolution");
-            egui::ComboBox::from_id_salt("export-dpi").selected_text(format!("{} pixels/inch", d.dpi)).show_ui(ui, |ui| {
+            ui.label(crate::i18n::text("ui.resolution"));
+            egui::ComboBox::from_id_salt("export-dpi").selected_text(crate::msg!(value_pixels_inch, d.dpi)).show_ui(ui, |ui| {
                 for dpi in [72.0, 96.0, 150.0, 300.0, 600.0] {
-                    ui.selectable_value(&mut d.dpi, dpi, format!("{dpi} pixels/inch"));
+                    ui.selectable_value(&mut d.dpi, dpi, crate::msg!(value_pixels_inch_b5a63a, dpi = dpi));
                 }
             });
         });
         ui.horizontal(|ui| {
-            ui.label("Format");
+            ui.label(crate::i18n::text("ui.format"));
             let mut quality = match d.format {
                 ImageFormat::Jpeg { quality } => quality,
                 _ => 85,
@@ -74,17 +74,17 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PrintCraftApp, t: &Tokens, kind:
                 }
             });
             if let ImageFormat::Jpeg { .. } = d.format {
-                ui.label("Quality");
+                ui.label(crate::i18n::text("ui.quality"));
                 if ui.add(egui::Slider::new(&mut quality, 10..=100)).changed() {
                     d.format = ImageFormat::Jpeg { quality };
                 }
             }
         });
-        ui.label(egui::RichText::new(format!("One {} file per page, named after the document.", d.format.label())).small().color(t.text_faint));
+        ui.label(egui::RichText::new(crate::msg!(one_value_file_per_page_named_after_the_document, d.format.label())).small().color(t.text_faint));
     } else if kind == ExportKind::AllImages {
         ui.horizontal(|ui| {
-            ui.label("Exclude images smaller than");
-            let label = |n: u32| if n == 0 { "No limit".to_string() } else { format!("{n} pixels") };
+            ui.label(crate::i18n::text("ui.exclude_images_smaller_than"));
+            let label = |n: u32| if n == 0 { crate::i18n::text("ui.no_limit").to_string() } else { crate::msg!(value_pixels, n = n) };
             egui::ComboBox::from_id_salt("export-min").selected_text(label(d.min_side)).show_ui(ui, |ui| {
                 for n in [0, 16, 32, 64, 128, 256] {
                     ui.selectable_value(&mut d.min_side, n, label(n));
@@ -92,24 +92,28 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PrintCraftApp, t: &Tokens, kind:
             });
         });
         ui.label(
-            egui::RichText::new("Each image once, named after the document and page. JPEG images are saved unchanged; others as PNG.")
-                .small()
-                .color(t.text_faint),
+            egui::RichText::new(crate::i18n::text(
+                "ui.each_image_once_named_after_the_document_and_page_jpeg_images_are_saved_unchanged_others_as_png",
+            ))
+            .small()
+            .color(t.text_faint),
         );
     } else {
-        ui.label(egui::RichText::new("Plain text in reading order; pages are separated by form feeds.").small().color(t.text_faint));
+        ui.label(
+            egui::RichText::new(crate::i18n::text("ui.plain_text_in_reading_order_pages_are_separated_by_form_feeds")).small().color(t.text_faint),
+        );
     }
     ui.add_space(6.0);
-    ui.label(egui::RichText::new("Pages").font(theme::semibold(12.5)));
+    ui.label(egui::RichText::new(crate::i18n::text("ui.pages")).font(theme::semibold(12.5)));
     d.range.ui(ui, count);
     ui.add_space(12.0);
     let (mut apply, mut cancel) = (false, false);
     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
         let ok = !d.range.pages(count).is_empty();
-        if ui.add_enabled_ui(ok, |ui| widgets::pill_button(ui, "Export", true)).inner.clicked() {
+        if ui.add_enabled_ui(ok, |ui| widgets::pill_button(ui, crate::i18n::text("ui.export"), true)).inner.clicked() {
             apply = true;
         }
-        if widgets::pill_button(ui, "Cancel", false).clicked() {
+        if widgets::pill_button(ui, crate::i18n::text("ui.cancel"), false).clicked() {
             cancel = true;
         }
     });
@@ -139,17 +143,17 @@ fn run(
         set(0, None);
         let out = match printcraft_engine::export::extract_images(&src, &pages, min_side) {
             Ok(o) => o,
-            Err(e) => return format!("Export stopped: {e}"),
+            Err(e) => return crate::msg!(export_stopped_value, e = e),
         };
         for (k, img) in out.images.iter().enumerate() {
             if let Err(e) = sink(&printcraft_engine::export::image_file_name(&stem, img, k + 1), img.data.clone()) {
-                return format!("Export stopped: {e}");
+                return crate::msg!(export_stopped_value, e = e);
             }
         }
         let n = out.images.len();
-        let mut msg = format!("Exported {n} image{}", if n == 1 { "" } else { "s" });
+        let mut msg = crate::msg!(exported_value_image_value, crate::i18n::plural_suffix(n), n = n);
         if !out.skipped.is_empty() {
-            msg.push_str(&format!(" ({} not exported: {})", out.skipped.len(), out.skipped[0].2));
+            msg.push_str(&crate::msg!(value_not_exported_value, out.skipped.len(), out.skipped[0].2));
         }
         return msg;
     }
@@ -162,16 +166,16 @@ fn run(
                 set(k, None);
                 let result = ex.image(*p, dpi, format).and_then(|img| sink(&format!("{stem}_page_{}.{}", p + 1, format.extension()), img));
                 if let Err(e) = result {
-                    return format!("Export stopped: {e}");
+                    return crate::msg!(export_stopped_value, e = e);
                 }
             }
-            format!("Exported {total} image{}", if total == 1 { "" } else { "s" })
+            crate::msg!(exported_value_image_value_bddf51, crate::i18n::plural_suffix(total), total = total)
         }
         ExportKind::Text => {
             set(0, None);
             match ex.text_of(&pages).and_then(|text| sink(&format!("{stem}.txt"), text.into_bytes())) {
-                Ok(()) => format!("Exported the text of {total} page{}", if total == 1 { "" } else { "s" }),
-                Err(e) => format!("Export stopped: {e}"),
+                Ok(()) => crate::msg!(exported_the_text_of_value_page_value, crate::i18n::plural_suffix(total), total = total),
+                Err(e) => crate::msg!(export_stopped_value, e = e),
             }
         }
     }
@@ -180,6 +184,7 @@ fn run(
 impl PrintCraftApp {
     /// Start exporting the active document with the dialog's settings.
     pub(crate) fn start_export(&mut self, kind: ExportKind) {
+        let _locale = crate::i18n::scope(self.language);
         let Some((_, id)) = self.active_ids() else { return };
         let Some(doc) = self.session.get(id) else { return };
         let src = doc.export_source();
@@ -193,7 +198,7 @@ impl PrintCraftApp {
         {
             let dir = match &self.export_dir_override {
                 Some(d) => Some(std::path::PathBuf::from(d)),
-                None => rfd::FileDialog::new().set_title("Choose a folder for the exported files").pick_folder(),
+                None => rfd::FileDialog::new().set_title(crate::i18n::text("ui.choose_a_folder_for_the_exported_files")).pick_folder(),
             };
             let Some(dir) = dir else { return };
             let st = status.clone();
@@ -205,13 +210,13 @@ impl PrintCraftApp {
                 let msg = run(src, kind, dpi, format, min_side, pages, stem, sink, &st);
                 if let Ok(mut s) = st.lock() {
                     let (done, total) = s.as_ref().map_or((0, 0), |(d, t, _)| (*d, *t));
-                    *s = Some((done.max(total), total, Some(format!("{msg} to {shown}"))));
+                    *s = Some((done.max(total), total, Some(crate::msg!(value_to_value, msg = msg, shown = shown))));
                 }
             };
             if self.export_dir_override.is_some() {
                 work(); // tests and automation: synchronous
             } else {
-                std::thread::Builder::new().name("printcraft-export".into()).spawn(work).ok();
+                std::thread::Builder::new().name("printcraft-export".into()).spawn(crate::i18n::in_locale(work)).ok();
             }
         }
         #[cfg(target_arch = "wasm32")]
@@ -226,6 +231,7 @@ impl PrintCraftApp {
 
     /// Show export progress, and the result once it is done.
     pub(crate) fn poll_export(&mut self) {
+        let _locale = crate::i18n::scope(self.language);
         let Some(st) = self.export_status.clone() else { return };
         let snapshot = st.lock().ok().and_then(|s| s.clone());
         match snapshot {
@@ -233,7 +239,7 @@ impl PrintCraftApp {
                 self.export_status = None;
                 self.notify(msg);
             }
-            Some((done, total, None)) if total > 1 => self.notify(format!("Exporting… {done} of {total}")),
+            Some((done, total, None)) if total > 1 => self.notify(crate::msg!(exporting_value_of_value, done = done, total = total)),
             _ => {}
         }
         if let Some(ctx) = &self.ctx {

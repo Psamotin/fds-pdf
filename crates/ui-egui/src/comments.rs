@@ -116,25 +116,25 @@ impl CommentTool {
 
     pub fn label(self) -> &'static str {
         match self {
-            Self::Note => "Add a sticky note",
-            Self::TextBox => "Add a text box",
-            Self::Highlight => "Highlight",
-            Self::Underline => "Underline",
-            Self::StrikeOut => "Strikethrough",
-            Self::Squiggly => "Squiggly underline",
-            Self::Ink => "Draw",
-            Self::Line => "Line",
-            Self::Arrow => "Arrow",
-            Self::Rectangle => "Rectangle",
-            Self::Oval => "Oval",
-            Self::Polygon => "Polygon",
-            Self::PolyLine => "Connected lines",
-            Self::Cloud => "Cloud",
-            Self::Callout => "Add a callout",
-            Self::Caret => "Insert text",
-            Self::ReplaceText => "Replace text",
-            Self::Attach => "Attach file",
-            Self::Eraser => "Eraser",
+            Self::Note => crate::i18n::text("ui.add_a_sticky_note"),
+            Self::TextBox => crate::i18n::text("ui.add_a_text_box"),
+            Self::Highlight => crate::i18n::text("ui.highlight"),
+            Self::Underline => crate::i18n::text("ui.underline"),
+            Self::StrikeOut => crate::i18n::text("ui.strikethrough"),
+            Self::Squiggly => crate::i18n::text("ui.squiggly_underline"),
+            Self::Ink => crate::i18n::text("ui.draw"),
+            Self::Line => crate::i18n::text("ui.line"),
+            Self::Arrow => crate::i18n::text("ui.arrow"),
+            Self::Rectangle => crate::i18n::text("ui.rectangle"),
+            Self::Oval => crate::i18n::text("ui.oval"),
+            Self::Polygon => crate::i18n::text("ui.polygon"),
+            Self::PolyLine => crate::i18n::text("ui.connected_lines"),
+            Self::Cloud => crate::i18n::text("ui.cloud"),
+            Self::Callout => crate::i18n::text("ui.add_a_callout"),
+            Self::Caret => crate::i18n::text("ui.insert_text"),
+            Self::ReplaceText => crate::i18n::text("ui.replace_text"),
+            Self::Attach => crate::i18n::text("ui.attach_file"),
+            Self::Eraser => crate::i18n::text("ui.eraser"),
         }
     }
 
@@ -323,7 +323,7 @@ fn login_name() -> String {
             return v;
         }
     }
-    "Guest".into()
+    crate::i18n::text("ui.guest").into()
 }
 
 /// A drag in progress on a page.
@@ -1011,12 +1011,12 @@ pub(crate) fn composer(ctx: &egui::Context, view: &mut DocView, info: &DocInfo, 
     let mut cancel = false;
     let c = view.comments.composer.as_mut()?;
     let title = match c.kind {
-        ComposerKind::Note => "Sticky note",
-        ComposerKind::TextBox => "Text box",
-        ComposerKind::Callout { .. } => "Callout",
-        ComposerKind::Caret => "Inserted text",
-        ComposerKind::Replace => "Replacement text",
-        ComposerKind::Edit(_) => "Edit comment",
+        ComposerKind::Note => crate::i18n::text("ui.sticky_note"),
+        ComposerKind::TextBox => crate::i18n::text("ui.text_box"),
+        ComposerKind::Callout { .. } => crate::i18n::text("ui.callout"),
+        ComposerKind::Caret => crate::i18n::text("ui.inserted_text"),
+        ComposerKind::Replace => crate::i18n::text("ui.replacement_text"),
+        ComposerKind::Edit(_) => crate::i18n::text("ui.edit_comment"),
     };
     let pos = pos2(anchor.x + 12.0, anchor.y);
     egui::Area::new(egui::Id::new(("comment-composer", view.id.0))).order(egui::Order::Foreground).fixed_pos(pos).show(ctx, |ui| {
@@ -1028,10 +1028,10 @@ pub(crate) fn composer(ctx: &egui::Context, view: &mut DocView, info: &DocInfo, 
             });
             ui.add_space(6.0);
             let hint = match c.kind {
-                ComposerKind::TextBox | ComposerKind::Callout { .. } => "Type text",
-                ComposerKind::Caret => "Text to insert",
-                ComposerKind::Replace => "Replacement text",
-                _ => "Add a comment",
+                ComposerKind::TextBox | ComposerKind::Callout { .. } => crate::i18n::text("ui.type_text"),
+                ComposerKind::Caret => crate::i18n::text("ui.text_to_insert"),
+                ComposerKind::Replace => crate::i18n::text("ui.replacement_text"),
+                _ => crate::i18n::text("ui.add_a_comment"),
             };
             let edit =
                 ui.add(egui::TextEdit::multiline(&mut c.text).hint_text(hint).desired_rows(3).desired_width(f32::INFINITY).id_salt("composer-text"));
@@ -1048,13 +1048,18 @@ pub(crate) fn composer(ctx: &egui::Context, view: &mut DocView, info: &DocInfo, 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     let can_post = !c.text.trim().is_empty() || matches!(c.kind, ComposerKind::Edit(_));
                     if ui
-                        .add_enabled(can_post, egui::Button::new(egui::RichText::new("Post").color(Color32::WHITE)).fill(t.accent).corner_radius(14))
+                        .add_enabled(
+                            can_post,
+                            egui::Button::new(egui::RichText::new(crate::i18n::text("ui.post")).color(Color32::WHITE))
+                                .fill(t.accent)
+                                .corner_radius(14),
+                        )
                         .clicked()
                         || (enter && can_post)
                     {
                         post = true;
                     }
-                    if ui.add(egui::Button::new("Cancel").corner_radius(14)).clicked() {
+                    if ui.add(egui::Button::new(crate::i18n::text("ui.cancel")).corner_radius(14)).clicked() {
                         cancel = true;
                     }
                 });
@@ -1153,7 +1158,7 @@ pub(crate) fn context_menu(ui: &mut egui::Ui, view: &mut DocView, info: &DocInfo
     match selected {
         Some(a) => {
             let (page, index) = (a.page, a.index);
-            if ui.add_enabled(allowed, egui::Button::new("Edit text…")).clicked() {
+            if ui.add_enabled(allowed, egui::Button::new(crate::i18n::text("ui.edit_text"))).clicked() {
                 view.comments.composer = Some(Composer {
                     page,
                     at: [a.rect[2] as f64, a.rect[3] as f64],
@@ -1163,22 +1168,22 @@ pub(crate) fn context_menu(ui: &mut egui::Ui, view: &mut DocView, info: &DocInfo
                 });
                 ui.close();
             }
-            if ui.add_enabled(allowed, egui::Button::new("Reply")).clicked() {
+            if ui.add_enabled(allowed, egui::Button::new(crate::i18n::text("ui.reply"))).clicked() {
                 view.comments.reveal = true;
                 action = Some(CanvasAction::OpenComments);
                 ui.close();
             }
             ui.add_enabled_ui(allowed, |ui| {
-                ui.menu_button("Set status", |ui| {
+                ui.menu_button(crate::i18n::text("ui.set_status"), |ui| {
                     for s in [ReviewState::None, ReviewState::Accepted, ReviewState::Cancelled, ReviewState::Completed, ReviewState::Rejected] {
-                        if ui.button(s.name()).clicked() {
+                        if ui.button(crate::i18n::current().tr(s.name())).clicked() {
                             action =
                                 Some(CanvasAction::Edit(Box::new(Edit::SetAnnotationStatus { page, index, state: s, author: prefs.author.clone() })));
                             ui.close();
                         }
                     }
                 });
-                ui.menu_button("Colour", |ui| {
+                ui.menu_button(crate::i18n::text("ui.colour"), |ui| {
                     if let Some(c) = swatch_grid(ui, a.color.map(|c| c.map(f64::from))) {
                         action =
                             Some(CanvasAction::Edit(Box::new(Edit::StyleAnnotation { page, index, color: Some(c), opacity: None, width: None })));
@@ -1189,37 +1194,43 @@ pub(crate) fn context_menu(ui: &mut egui::Ui, view: &mut DocView, info: &DocInfo
             let thread: Vec<&printcraft_render::Annotation> =
                 info.annotations.iter().filter(|r| a.name.is_some() && r.in_reply_to == a.name).collect();
             let marked = crate::comments_panel::is_marked(&thread);
-            if ui.add_enabled(allowed, egui::Button::new(if marked { "Remove checkmark" } else { "Mark with checkmark" })).clicked() {
+            if ui
+                .add_enabled(
+                    allowed,
+                    egui::Button::new(if marked { crate::i18n::text("ui.remove_checkmark") } else { crate::i18n::text("ui.mark_with_checkmark") }),
+                )
+                .clicked()
+            {
                 action = Some(CanvasAction::Edit(Box::new(Edit::MarkAnnotation { page, index, marked: !marked, author: prefs.author.clone() })));
                 ui.close();
             }
-            if ui.button("Copy text").clicked() {
+            if ui.button(crate::i18n::text("ui.copy_text")).clicked() {
                 ui.ctx().copy_text(a.contents.clone().unwrap_or_default());
                 ui.close();
             }
             ui.separator();
-            if ui.add_enabled(allowed && !a.locked, egui::Button::new("Delete")).clicked() {
+            if ui.add_enabled(allowed && !a.locked, egui::Button::new(crate::i18n::text("ui.delete"))).clicked() {
                 view.comments.selected = None;
                 action = Some(CanvasAction::Edit(Box::new(Edit::DeleteAnnotation { page, index })));
                 ui.close();
             }
-            if ui.add_enabled(allowed, egui::Button::new("Properties…")).clicked() {
+            if ui.add_enabled(allowed, egui::Button::new(crate::i18n::text("ui.properties"))).clicked() {
                 action = Some(CanvasAction::Properties(page, index));
                 ui.close();
             }
-            if ui.add_enabled(tool_for(a).is_some(), egui::Button::new("Make Current Properties Default")).clicked() {
+            if ui.add_enabled(tool_for(a).is_some(), egui::Button::new(crate::i18n::text("ui.make_current_properties_default"))).clicked() {
                 view.comments.default_request = Some((page, index));
                 ui.close();
             }
         }
         None => {
             if let Some((page, at)) = view.comments.context_at
-                && ui.add_enabled(allowed, egui::Button::new("Add a sticky note here")).clicked()
+                && ui.add_enabled(allowed, egui::Button::new(crate::i18n::text("ui.add_a_sticky_note_here"))).clicked()
             {
                 view.comments.composer = Some(Composer { page, at, kind: ComposerKind::Note, text: String::new(), focus: true });
                 ui.close();
             }
-            if ui.button("Comments panel").clicked() {
+            if ui.button(crate::i18n::text("ui.comments_panel")).clicked() {
                 action = Some(CanvasAction::OpenComments);
                 ui.close();
             }
@@ -1249,7 +1260,7 @@ pub fn swatch_grid(ui: &mut egui::Ui, current: Option<Rgb>) -> Option<Rgb> {
             if on || resp.hovered() {
                 ui.painter().circle_stroke(r.center(), 11.0, Stroke::new(1.5, SELECT_BLUE));
             }
-            if resp.on_hover_text(*name).clicked() {
+            if resp.on_hover_text(crate::i18n::current().tr(name)).clicked() {
                 picked = Some(*c);
             }
             if i % 5 == 4 {
@@ -1263,35 +1274,43 @@ pub fn swatch_grid(ui: &mut egui::Ui, current: Option<Rgb>) -> Option<Rgb> {
 /// The comment tools' extra quick-bar controls: pin, colour, opacity and thickness.
 pub(crate) fn quick_bar_controls(ui: &mut egui::Ui, tool: CommentTool, prefs: &mut CommentPrefs) {
     let style = prefs.style(tool);
-    if icons::button(ui, "pin", 32.0, prefs.pinned, if prefs.pinned { "Keep tool selected: on" } else { "Keep tool selected" }).clicked() {
+    if icons::button(
+        ui,
+        "pin",
+        32.0,
+        prefs.pinned,
+        if prefs.pinned { crate::i18n::text("ui.keep_tool_selected_on") } else { crate::i18n::text("ui.keep_tool_selected") },
+    )
+    .clicked()
+    {
         prefs.pinned = !prefs.pinned;
     }
     let (r, resp) = ui.allocate_exact_size(vec2(32.0, 32.0), Sense::click());
     ui.painter().circle_filled(r.center(), 9.0, color32(style.color));
     ui.painter().circle_stroke(r.center(), 9.0, Stroke::new(1.0, Color32::from_black_alpha(50)));
-    let resp = resp.on_hover_text("Colour");
+    let resp = resp.on_hover_text(crate::i18n::text("ui.colour"));
     egui::Popup::menu(&resp).align(egui::RectAlign::RIGHT_START).show(|ui| {
         if let Some(c) = swatch_grid(ui, Some(style.color)) {
             prefs.set_color(tool, c);
             ui.close();
         }
     });
-    let resp = icons::button(ui, "blend", 32.0, false, "Opacity");
+    let resp = icons::button(ui, "blend", 32.0, false, crate::i18n::text("ui.opacity"));
     egui::Popup::menu(&resp).align(egui::RectAlign::RIGHT_START).close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside).show(|ui| {
         ui.set_min_width(180.0);
         let mut percent = (style.opacity * 100.0).round();
-        ui.label(egui::RichText::new("Opacity").font(theme::semibold(12.0)));
+        ui.label(egui::RichText::new(crate::i18n::text("ui.opacity")).font(theme::semibold(12.0)));
         if ui.add(egui::Slider::new(&mut percent, 10.0..=100.0).step_by(5.0).suffix(" %")).changed() {
             prefs.set_opacity(tool, percent / 100.0);
         }
     });
     if tool.has_width() {
-        let resp = icons::button(ui, "sliders-horizontal", 32.0, false, "Line thickness");
+        let resp = icons::button(ui, "sliders-horizontal", 32.0, false, crate::i18n::text("ui.line_thickness"));
         egui::Popup::menu(&resp).align(egui::RectAlign::RIGHT_START).close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside).show(|ui| {
             ui.set_min_width(180.0);
             let mut w = style.width;
-            ui.label(egui::RichText::new("Line thickness").font(theme::semibold(12.0)));
-            if ui.add(egui::Slider::new(&mut w, 0.5..=12.0).step_by(0.5).suffix(" pt")).changed() {
+            ui.label(egui::RichText::new(crate::i18n::text("ui.line_thickness")).font(theme::semibold(12.0)));
+            if ui.add(egui::Slider::new(&mut w, 0.5..=12.0).step_by(0.5).suffix(crate::i18n::text("ui.pt"))).changed() {
                 prefs.set_width(tool, w);
             }
         });
@@ -1301,10 +1320,10 @@ pub(crate) fn quick_bar_controls(ui: &mut egui::Ui, tool: CommentTool, prefs: &m
 /// Status badge icon and label for a review state name.
 pub fn status_badge(state: &str) -> Option<(&'static str, &'static str, Color32)> {
     match state {
-        "Accepted" => Some(("thumbs-up", "Accepted", Color32::from_rgb(0x2D, 0x9D, 0x5B))),
-        "Rejected" => Some(("thumbs-down", "Rejected", Color32::from_rgb(0xD3, 0x2F, 0x2F))),
-        "Cancelled" => Some(("circle-x", "Cancelled", Color32::from_rgb(0x8E, 0x8E, 0x8E))),
-        "Completed" => Some(("check", "Completed", Color32::from_rgb(0x2D, 0x9D, 0x5B))),
+        "Accepted" => Some(("thumbs-up", crate::i18n::text("ui.accepted"), Color32::from_rgb(0x2D, 0x9D, 0x5B))),
+        "Rejected" => Some(("thumbs-down", crate::i18n::text("ui.rejected"), Color32::from_rgb(0xD3, 0x2F, 0x2F))),
+        "Cancelled" => Some(("circle-x", crate::i18n::text("ui.cancelled"), Color32::from_rgb(0x8E, 0x8E, 0x8E))),
+        "Completed" => Some(("check", crate::i18n::text("ui.completed"), Color32::from_rgb(0x2D, 0x9D, 0x5B))),
         _ => None,
     }
 }
