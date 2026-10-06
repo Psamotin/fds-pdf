@@ -22,6 +22,10 @@ mod create_ui;
 mod crop;
 mod export_ui;
 mod js_ui;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod local_ocr;
+#[cfg(not(target_arch = "wasm32"))]
+mod local_ocr_ui;
 mod marks_ui;
 mod ocr_ui;
 mod optimize_ui;
@@ -330,6 +334,8 @@ pub struct PrintCraftApp {
     pub a11y_options: a11y_ui::A11yOptions,
     /// Scan & OCR: the Recognize Text choices, the running job, and (tests) run it inline.
     pub ocr_draft: ocr_ui::OcrDraft,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub local_ocr: Option<local_ocr_ui::DesktopOcr>,
     pub ocr_run: Option<ocr_ui::OcrRun>,
     pub ocr_batch: Option<std::sync::Arc<std::sync::Mutex<ocr_ui::BatchProgress>>>,
     /// Background jobs (OCR, actions) run inline instead (tests).
@@ -487,6 +493,8 @@ impl PrintCraftApp {
             sig_expanded: Vec::new(),
             a11y_options: a11y_ui::A11yOptions::default(),
             ocr_draft: ocr_ui::OcrDraft::default(),
+            #[cfg(not(target_arch = "wasm32"))]
+            local_ocr: None,
             ocr_run: None,
             ocr_batch: None,
             run_inline: false,

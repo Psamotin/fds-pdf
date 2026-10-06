@@ -78,6 +78,11 @@ fn main() -> eframe::Result {
         native,
         Box::new(move |cc| {
             let mut app = PrintCraftApp::new();
+            #[cfg(windows)]
+            match std::env::current_exe().map_err(|error| error.to_string()).and_then(|exe| app.enable_local_ocr(&exe).map_err(|e| e.details)) {
+                Ok(()) => {}
+                Err(error) => eprintln!("FDS-PDF: OCR runtime location: {error}"),
+            }
             if let Some(json) = cc.storage.and_then(|s| s.get_string("printcraft")) {
                 app.restore(&json);
             }

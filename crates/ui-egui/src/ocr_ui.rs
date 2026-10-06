@@ -59,6 +59,10 @@ pub struct OcrRun {
 }
 
 pub(crate) fn body(ui: &mut egui::Ui, app: &mut PrintCraftApp, t: &Tokens) -> (bool, bool) {
+    #[cfg(not(target_arch = "wasm32"))]
+    if app.local_ocr.is_some() {
+        return crate::local_ocr_ui::body(ui, app);
+    }
     let pages = app.active_ids().and_then(|(_, id)| app.session.get(id)).map_or(1, |d| d.info.pages.len().max(1));
     let available = printcraft_engine::ocr::available();
     let d = &mut app.ocr_draft;
@@ -140,6 +144,11 @@ impl PrintCraftApp {
     /// Recognize text on the pages chosen in the dialog, in the background.
     pub fn start_ocr(&mut self) {
         let _locale = crate::i18n::scope(self.language);
+        #[cfg(not(target_arch = "wasm32"))]
+        if self.local_ocr.is_some() {
+            self.start_local_ocr();
+            return;
+        }
         let Some((vi, id)) = self.active_ids() else { return };
         if self.ocr_run.is_some() {
             self.notify(crate::i18n::text("ui.text_recognition_is_already_running"));
@@ -188,6 +197,11 @@ impl PrintCraftApp {
     /// (the export folder override in tests), under the same names.
     pub fn ocr_files(&mut self, files: Vec<(String, Vec<u8>)>) {
         let _locale = crate::i18n::scope(self.language);
+        #[cfg(not(target_arch = "wasm32"))]
+        if self.local_ocr.is_some() {
+            self.start_local_ocr_files(files);
+            return;
+        }
         if self.ocr_batch.is_some() {
             self.notify(crate::i18n::text("ui.text_recognition_is_already_running"));
             return;
@@ -253,6 +267,10 @@ impl PrintCraftApp {
     /// Stop a running recognition (the pages read so far are kept).
     pub fn cancel_ocr(&mut self) {
         let _locale = crate::i18n::scope(self.language);
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Some(state) = &self.local_ocr {
+            state.cancel();
+        }
         if let Some(r) = &self.ocr_run
             && let Ok(mut s) = r.progress.lock()
         {
@@ -263,6 +281,8 @@ impl PrintCraftApp {
     /// Show progress; apply the result once the worker is done.
     pub(crate) fn poll_ocr(&mut self) {
         let _locale = crate::i18n::scope(self.language);
+        #[cfg(not(target_arch = "wasm32"))]
+        self.poll_local_ocr();
         if let Some(b) = self.ocr_batch.clone() {
             let msg = b.lock().ok().map(|mut s| s.message.take().ok_or((s.done, s.total)));
             match msg {

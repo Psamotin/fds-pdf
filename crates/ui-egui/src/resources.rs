@@ -3602,6 +3602,128 @@ pub(super) const RESOURCES: &[Resource] = &[
     Resource {
         key: "ui.number_pages_f8623f", formatted: false, source: "Number pages…", en: "Number pages…", ru: "Пронумеровать страницы…"
     },
+    Resource {
+        key: "ui.ocr_local_cancelled",
+        formatted: false,
+        source: "Recognition cancelled. The original document is unchanged.",
+        en: "Recognition cancelled. The original document is unchanged.",
+        ru: "Распознавание отменено. Исходный документ не изменён.",
+    },
+    Resource {
+        key: "ui.ocr_local_checking",
+        formatted: false,
+        source: "Checking the embedded recognition module…",
+        en: "Checking the embedded recognition module…",
+        ru: "Проверяем встроенный модуль распознавания…",
+    },
+    Resource {
+        key: "ui.ocr_local_choose_folder",
+        formatted: false,
+        source: "Choose a folder for recognition results",
+        en: "Choose a folder for recognition results",
+        ru: "Выберите папку для результатов распознавания",
+    },
+    Resource {
+        key: "ui.ocr_local_choose_output",
+        formatted: false,
+        source: "Save recognition result",
+        en: "Save recognition result",
+        ru: "Сохранить результат распознавания",
+    },
+    Resource {
+        key: "ui.ocr_local_complete",
+        formatted: false,
+        source: "Recognition completed",
+        en: "Recognition completed",
+        ru: "Распознавание завершено",
+    },
+    Resource {
+        key: "ui.ocr_local_deskew",
+        formatted: false,
+        source: "Straighten tilted pages",
+        en: "Straighten tilted pages",
+        ru: "Выровнять наклон",
+    },
+    Resource {
+        key: "ui.ocr_local_details", formatted: false, source: "Technical details", en: "Technical details", ru: "Технические подробности"
+    },
+    Resource { key: "ui.ocr_local_elapsed", formatted: false, source: "Elapsed seconds", en: "Elapsed seconds", ru: "Прошло секунд" },
+    Resource {
+        key: "ui.ocr_local_failed",
+        formatted: false,
+        source: "Could not recognize this document. The original file is unchanged.",
+        en: "Could not recognize this document. The original file is unchanged.",
+        ru: "Не удалось распознать документ. Исходный файл не изменён.",
+    },
+    Resource { key: "ui.ocr_local_file", formatted: false, source: "File:", en: "File:", ru: "Файл:" },
+    Resource {
+        key: "ui.ocr_local_invalid_pdf",
+        formatted: false,
+        source: "The recognition module returned an invalid PDF. No result was saved.",
+        en: "The recognition module returned an invalid PDF. No result was saved.",
+        ru: "Модуль распознавания вернул некорректный PDF. Результат не сохранён.",
+    },
+    Resource {
+        key: "ui.ocr_local_io_failed",
+        formatted: false,
+        source: "Could not read or save the recognition result. Check the folder and free disk space.",
+        en: "Could not read or save the recognition result. Check the folder and free disk space.",
+        ru: "Не удалось прочитать или сохранить результат. Проверьте доступ к папке и свободное место.",
+    },
+    Resource { key: "ui.ocr_local_language", formatted: false, source: "Language:", en: "Language:", ru: "Язык:" },
+    Resource {
+        key: "ui.ocr_local_languages", formatted: false, source: "Russian + English", en: "Russian + English", ru: "Русский + Английский"
+    },
+    Resource {
+        key: "ui.ocr_local_launch_failed",
+        formatted: false,
+        source: "Could not start the embedded recognition module. Extract the complete application archive again.",
+        en: "Could not start the embedded recognition module. Extract the complete application archive again.",
+        ru: "Не удалось запустить встроенный модуль распознавания. Повторно распакуйте полный архив приложения.",
+    },
+    Resource { key: "ui.ocr_local_open_result", formatted: false, source: "Open result", en: "Open result", ru: "Открыть результат" },
+    Resource {
+        key: "ui.ocr_local_output", formatted: false, source: "Result (new file):", en: "Result (new file):", ru: "Результат (новый файл):"
+    },
+    Resource {
+        key: "ui.ocr_local_output_exists",
+        formatted: false,
+        source: "A file with this name already exists. Choose a different result name; nothing was overwritten.",
+        en: "A file with this name already exists. Choose a different result name; nothing was overwritten.",
+        ru: "Файл с таким именем уже существует. Выберите другое имя результата; существующий файл не перезаписан.",
+    },
+    Resource {
+        key: "ui.ocr_local_privacy",
+        formatted: false,
+        source: "Recognition runs locally. The original is preserved and the document is not uploaded.",
+        en: "Recognition runs locally. The original is preserved and the document is not uploaded.",
+        ru: "Распознавание выполняется локально. Исходник сохраняется, документ никуда не отправляется.",
+    },
+    Resource {
+        key: "ui.ocr_local_progress_notice",
+        formatted: false,
+        source: "Please wait. You can cancel recognition.",
+        en: "Please wait. You can cancel recognition.",
+        ru: "Пожалуйста, подождите. Распознавание можно отменить.",
+    },
+    Resource { key: "ui.ocr_local_recognize", formatted: false, source: "Recognize", en: "Recognize", ru: "Распознать" },
+    Resource {
+        key: "ui.ocr_local_rotate",
+        formatted: false,
+        source: "Automatically rotate pages",
+        en: "Automatically rotate pages",
+        ru: "Автоматически повернуть страницы",
+    },
+    Resource {
+        key: "ui.ocr_local_running", formatted: false, source: "Recognizing text…", en: "Recognizing text…", ru: "Распознаём текст…"
+    },
+    Resource {
+        key: "ui.ocr_local_runtime_missing",
+        formatted: false,
+        source: "The embedded recognition module is missing or damaged. Extract the full application archive again.",
+        en: "The embedded recognition module is missing or damaged. Extract the full application archive again.",
+        ru: "Встроенный модуль распознавания отсутствует или повреждён. Повторно распакуйте полный архив приложения.",
+    },
     Resource { key: "ui.october", formatted: false, source: "October", en: "October", ru: "Октябрь" },
     Resource { key: "ui.odd_pages", formatted: false, source: "Odd pages", en: "Odd pages", ru: "Нечётные страницы" },
     Resource {
