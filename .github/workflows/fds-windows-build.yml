@@ -9,6 +9,9 @@ on:
     paths:
       - 'apps/printcraft/**'
       - 'crates/ui-egui/**'
+      - 'assets/fds-pdf/**'
+      - 'packaging/fds/**'
+      - 'xtask/**'
       - 'Cargo.lock'
       - '.github/workflows/fds-windows-build.yml'
 
@@ -22,6 +25,8 @@ env:
 jobs:
   windows-x64:
     runs-on: windows-latest
+    outputs:
+      artifact_url: ${{ steps.upload.outputs.artifact-url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -48,36 +53,71 @@ jobs:
           cargo test --locked -p printcraft-ui-egui -p printcraft
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: Build FDS PDF R1
+      - name: Build FDS PDF R2 RC1
         shell: pwsh
         run: |
           cargo build --release --locked -p printcraft
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: Prepare corporate artifact
+      - name: Package embedded local OCR and smoke after relocation
         shell: pwsh
         run: |
-          $out = 'dist/FDS-PDF'
-          New-Item -ItemType Directory -Force $out | Out-Null
-          Copy-Item target/release/printcraft.exe "$out/FDS-PDF.exe"
-          Copy-Item LICENSE-MIT, LICENSE-APACHE, NOTICE, ATTRIBUTION.md, ATTRIBUTION.toml $out
-          # Preserve each licence path referenced by the attribution manifest.
-          $licences = Select-String -Path ATTRIBUTION.toml -Pattern '^licence_file = "([^"]+)"' |
-            ForEach-Object { $_.Matches[0].Groups[1].Value } | Sort-Object -Unique
-          foreach ($licence in $licences) {
-            if (-not (Test-Path -LiteralPath $licence -PathType Leaf)) { throw "Missing licence: $licence" }
-            $destination = Join-Path $out $licence
-            New-Item -ItemType Directory -Force (Split-Path $destination) | Out-Null
-            Copy-Item -LiteralPath $licence -Destination $destination
-          }
-          Get-Item "$out/FDS-PDF.exe" | Select-Object FullName, Length, LastWriteTime
+          python packaging/fds/package.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $out = "dist/FDS-PDF-$env:FDS_VERSION-windows-x64"
           $exe = Get-Item "$out/FDS-PDF.exe"
           if ($exe.VersionInfo.ProductName -ne 'ФДС ПДФ') { throw 'Incorrect Windows product name' }
           if ($exe.VersionInfo.ProductVersion -ne $env:FDS_VERSION) { throw 'Incorrect Windows product version' }
+          $tess = Get-Item "$out/OCR/Tesseract-OCR/tesseract.exe"
+          if ($tess.VersionInfo.ProductVersion -ne '5.5.3.20260724') { throw 'Incorrect pinned Tesseract binary version' }
 
       - name: Upload Windows release candidate
+        id: upload
         uses: actions/upload-artifact@v4
         with:
           name: FDS-PDF-${{ env.FDS_VERSION }}-windows-x64
-          path: dist/FDS-PDF/
+          path: |
+            dist/FDS-PDF-${{ env.FDS_VERSION }}-windows-x64.zip
+            dist/build-report.json
           if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+
+  review-pr:
+    needs: windows-x64
+    if: github.event_name == 'push' && github.ref == 'refs/heads/fds-pdf-r2-ocr-rc1'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Create or update the unmerged release candidate PR
+        uses: actions/github-script@v7
+        env:
+          ARTIFACT_URL: ${{ needs.windows-x64.outputs.artifact_url }}
+        with:
+          script: |
+            const head = 'fds-pdf-r2-ocr-rc1';
+            const title = 'FDS-PDF-R2-RC1: Russian UI, approved icon and portable local OCR';
+            const body = [
+              'Подготавливает ФДС ПДФ 0.2.0-fds.1-rc1: русскую локализацию R1, утверждённую иконку и локальное распознавание в существующем Scan & OCR UI.',
+              '',
+              'OCR получает снимок документа, сохраняет новый *_OCR.pdf без перезаписи и предлагает открыть результат. Процессы скрыты; Windows Job Object завершает дерево процессов при отмене.',
+              '',
+              'В комплекте закреплены Python 3.13.15, OCRmyPDF 17.4.0, Tesseract 5.5.3.20260724 и rus/eng/osd. Приложены лицензии, исходники runtime и контрольные суммы.',
+              '',
+              'PDF engine, crate names, command IDs и обычное открытие/сохранение сохранены. Cargo binary остаётся printcraft; артефакт содержит FDS-PDF.exe.',
+              '',
+              'Windows: fmt, затронутые тесты, release --locked и smoke после переноса комплекта прошли.',
+              `Артефакт: ${process.env.ARTIFACT_URL}`,
+              `Сборка: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              '',
+              'Ручная приёмка Windows 11 ещё не выполнена. PR должен оставаться unmerged до MANUAL_WINDOWS_ACCEPTANCE_FDS_PDF_R2_RC1.',
+              'Подробности и чек-лист: docs/fds/FDS-PDF-R2-RC1.md.'
+            ].join('\n');
+            const { data: existing } = await github.rest.pulls.list({ ...context.repo, state: 'open', head: `${context.repo.owner}:${head}`, base: 'main' });
+            const request = { ...context.repo, title, body };
+            const { data: pr } = existing.length
+              ? await github.rest.pulls.update({ ...request, pull_number: existing[0].number })
+              : await github.rest.pulls.create({ ...request, head, base: 'main', draft: true });
+            await core.summary.addLink('Release candidate PR (unmerged)', pr.html_url).write();
