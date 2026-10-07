@@ -26,7 +26,7 @@ class SourceNotices(unittest.TestCase):
                             tar.addfile(member, io.BytesIO(content))
             destination = root / 'notices'
             notices_from_archive(archive, destination)
-            self.assertEqual(sorted(str(p.relative_to(destination)) for p in destination.rglob('*') if p.is_file()),
+            self.assertEqual(sorted(p.relative_to(destination).as_posix() for p in destination.rglob('*') if p.is_file()),
                              ['src/BUILD_LICENSES/pdfium.txt', 'src/LICENSES/BSD-3-Clause.txt',
                               'src/leptonica-license.txt'])
             self.assertEqual((destination / 'src/BUILD_LICENSES/pdfium.txt').read_bytes(),
