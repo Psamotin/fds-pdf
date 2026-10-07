@@ -76,6 +76,8 @@ jobs:
       - name: Package embedded local OCR and smoke after relocation
         shell: pwsh
         run: |
+          python packaging/fds/test_source_notices.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python packaging/fds/package.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $out = "dist/FDS-PDF-$env:FDS_VERSION-windows-x64"

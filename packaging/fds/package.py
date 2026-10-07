@@ -55,7 +55,7 @@ def copy(source, target):
     shutil.copy2(source, target)
 
 
-def notices_from_archive(archive, destination, sevenzip):
+def notices_from_archive(archive, destination):
     """Read licence files directly; gzip filenames and extractor versions cannot change discovery."""
     def is_notice(path):
         return any(re.search(r'(^|[-_.])(LICENSES?|LICENCES?|COPYING|COPYRIGHT|NOTICE|AUTHORS)([-_.]|$)',
@@ -89,13 +89,6 @@ def notices_from_archive(archive, destination, sevenzip):
                 if not member.is_dir() and is_notice(PurePosixPath(member.filename)):
                     with source.open(member) as stream:
                         count += write_notice(member.filename, stream)
-    elif archive.name.endswith('.tar.lz'):
-        # stdlib has no lzip decoder; use 7-Zip only to stream the outer compression.
-        with tempfile.TemporaryDirectory(prefix='fds-source-notices-') as temporary:
-            tar = Path(temporary) / 'source.tar'
-            with tar.open('wb') as output:
-                run(sevenzip, 'x', '-so', archive, stdout=output)
-            count = read_tar(tar)
     else:
         count = read_tar(archive)
     if not count:
@@ -197,7 +190,7 @@ def package(args):
         for item in [*manifest['python_sources'], *manifest['native_sources']]:
             archive = fetch(item, cache / 'sources')
             copy(archive, sources / item['filename'])
-            notices_from_archive(archive, licenses / 'Source-notices' / item['name'], sevenzip)
+            notices_from_archive(archive, licenses / 'Source-notices' / item['name'])
     for item in manifest['extra_notices']:
         copy(fetch(item, cache / 'notices'), licenses / 'Native-notices' / item['filename'])
     for name in ['runtime-lock.json', 'requirements-windows.lock']:

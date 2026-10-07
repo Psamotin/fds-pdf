@@ -85,6 +85,14 @@ GUI показывает статус проверки, настройки по�
 runner выполняется offline с `--require-hashes --no-deps --no-index`.
 На рабочем ПК установка и доступ к Интернету не требуются.
 
+Исходники gettext 1.0 взяты с официального GNU сайта в формате `.tar.xz`,
+который читает stdlib Python. Распакованный TAR побайтно совпадает с исходным
+закреплённым `.tar.lz` (SHA-256 TAR:
+`34d0a7e34d69ba64d38c58831d55dc0e4b746243ec0fa8604f76b75602721612`);
+оба URL/hash записаны в manifest. Версия и бинарники gettext не менялись.
+Извлечение лицензий проверяется regression tests, включая LICENSES и
+BUILD_LICENSES и gzip с нестандартным внутренним именем.
+
 - Python 3.13.15 x64: официальный installer в архиве actions/python-versions.
   Устанавливается только на CI в каталог комплекта, без PATH/launcher/ярлыков.
 - OCRmyPDF 17.4.0: PyPI wheel и закреплённая dependency closure.

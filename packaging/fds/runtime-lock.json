@@ -708,10 +708,16 @@
     {
       "name": "gettext",
       "version": "1.0",
-      "filename": "gettext-1.0.tar.lz",
-      "url": "https://ftp.gnu.org/pub/gnu/gettext/gettext-1.0.tar.lz",
-      "sha256": "d6342cbe1411a2fe7d139bfed80c2d63b1babc92acfedc72501cc105184f61ee",
-      "license": "'spdx:GPL-3.0-or-later AND LGPL-2.1-or-later'"
+      "filename": "gettext-1.0.tar.xz",
+      "url": "https://ftp.gnu.org/pub/gnu/gettext/gettext-1.0.tar.xz",
+      "sha256": "71132a3fb71e68245b8f2ac4e9e97137d3e5c02f415636eb508ae607bc01add7",
+      "license": "'spdx:GPL-3.0-or-later AND LGPL-2.1-or-later'",
+      "equivalent_original_archive": {
+        "filename": "gettext-1.0.tar.lz",
+        "url": "https://ftp.gnu.org/pub/gnu/gettext/gettext-1.0.tar.lz",
+        "sha256": "d6342cbe1411a2fe7d139bfed80c2d63b1babc92acfedc72501cc105184f61ee",
+        "uncompressed_tar_sha256": "34d0a7e34d69ba64d38c58831d55dc0e4b746243ec0fa8604f76b75602721612"
+      }
     },
     {
       "name": "jbigkit",

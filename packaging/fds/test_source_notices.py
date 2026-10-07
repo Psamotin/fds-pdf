@@ -25,7 +25,7 @@ class SourceNotices(unittest.TestCase):
                             member.size = len(content)
                             tar.addfile(member, io.BytesIO(content))
             destination = root / 'notices'
-            notices_from_archive(archive, destination, 'unused')
+            notices_from_archive(archive, destination)
             self.assertEqual(sorted(str(p.relative_to(destination)) for p in destination.rglob('*') if p.is_file()),
                              ['src/BUILD_LICENSES/pdfium.txt', 'src/LICENSES/BSD-3-Clause.txt',
                               'src/leptonica-license.txt'])
@@ -42,7 +42,7 @@ class SourceNotices(unittest.TestCase):
             destination.mkdir()
             (destination / 'LICENSE').write_text('old')
             with self.assertRaisesRegex(RuntimeError, 'No licence/copyright notice'):
-                notices_from_archive(archive, destination, 'unused')
+                notices_from_archive(archive, destination)
 
 
 if __name__ == '__main__':
