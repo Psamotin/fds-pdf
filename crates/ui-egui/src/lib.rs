@@ -22,6 +22,10 @@ mod create_ui;
 mod crop;
 mod export_ui;
 mod js_ui;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod local_ocr;
+#[cfg(not(target_arch = "wasm32"))]
+mod local_ocr_ui;
 mod marks_ui;
 mod ocr_ui;
 mod optimize_ui;
@@ -58,6 +62,8 @@ pub use print_ui::{Handling as PrintHandling, PrintDraft, Which as PrintWhich};
 mod redact_ui;
 pub use redact_ui::{HiddenDraft, PagesDraft as RedactPagesDraft, RedactPrefs, SearchDraft as RedactSearchDraft};
 pub mod i18n;
+mod messages;
+mod resources;
 
 /// The longest author name kept (Preferences ▸ Identity, restored settings).
 pub(crate) const MAX_AUTHOR_CHARS: usize = 200;
@@ -328,6 +334,8 @@ pub struct PrintCraftApp {
     pub a11y_options: a11y_ui::A11yOptions,
     /// Scan & OCR: the Recognize Text choices, the running job, and (tests) run it inline.
     pub ocr_draft: ocr_ui::OcrDraft,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub local_ocr: Option<local_ocr_ui::DesktopOcr>,
     pub ocr_run: Option<ocr_ui::OcrRun>,
     pub ocr_batch: Option<std::sync::Arc<std::sync::Mutex<ocr_ui::BatchProgress>>>,
     /// Background jobs (OCR, actions) run inline instead (tests).
@@ -485,6 +493,8 @@ impl PrintCraftApp {
             sig_expanded: Vec::new(),
             a11y_options: a11y_ui::A11yOptions::default(),
             ocr_draft: ocr_ui::OcrDraft::default(),
+            #[cfg(not(target_arch = "wasm32"))]
+            local_ocr: None,
             ocr_run: None,
             ocr_batch: None,
             run_inline: false,
@@ -553,12 +563,14 @@ impl PrintCraftApp {
     /// Fields are being edited (Prepare a form is open or a field tool is picked), unless the
     /// form is being previewed.
     pub fn is_preparing(&self) -> bool {
+        let _locale = crate::i18n::scope(self.language);
         ((self.left_open && self.left == LeftPanel::Tool("form")) || matches!(self.quick_tool, QuickTool::Field(_))) && !self.form_preview
     }
 
     /// Open a document the way it asks to be opened: navigation panel, layout, magnification,
     /// page (Document Properties ▸ Initial View).
     fn apply_initial_view(&mut self, index: usize, v: &printcraft_engine::InitialView) {
+        let _locale = crate::i18n::scope(self.language);
         use printcraft_engine::{InitialLayout as L, Magnification as M, Navigation as N};
         let pages = self.session.get(self.views[index].id).map_or(0, |d| d.info.pages.len());
         match v.navigation {
@@ -594,6 +606,7 @@ impl PrintCraftApp {
 
     /// Open a document and make it the active tab. Encrypted files raise the password prompt.
     pub fn open_bytes(&mut self, name: &str, path: Option<String>, bytes: Vec<u8>) -> Result<(), String> {
+        let _locale = crate::i18n::scope(self.language);
         // Images and text files become new, unsaved PDFs (Create a PDF).
         if let Some(r) = self.open_converted(name, &bytes) {
             return r;
@@ -602,19 +615,20 @@ impl PrintCraftApp {
     }
 
     fn try_open(&mut self, name: &str, path: Option<String>, bytes: std::sync::Arc<Vec<u8>>, password: Option<&str>) -> Result<(), String> {
+        let _locale = crate::i18n::scope(self.language);
         use printcraft_render::OpenError;
         let size = bytes.len();
         let id = match self.session.open(name, path.clone(), bytes.clone(), password) {
             Ok(id) => id,
             Err(e @ (OpenError::NeedsPassword | OpenError::WrongPassword)) => {
-                let error = matches!(e, OpenError::WrongPassword).then(|| "Incorrect password. Try again.".to_string());
+                let error = matches!(e, OpenError::WrongPassword).then(|| crate::i18n::text("ui.incorrect_password_try_again").to_string());
                 self.password_prompt = Some(PasswordPrompt { name: name.to_string(), path, bytes, input: String::new(), error });
                 return Ok(());
             }
             Err(e) => return Err(e.to_string()),
         };
         self.password_prompt = None;
-        let doc = self.session.get(id).ok_or("the document could not be opened")?;
+        let doc = self.session.get(id).ok_or(crate::i18n::text("ui.the_document_could_not_be_opened"))?;
         let pages = doc.info.pages.len();
         // Acrobat opens straight to the Comments panel when a document has comments.
         if self.right.is_none() {
@@ -640,6 +654,7 @@ impl PrintCraftApp {
 
     #[cfg(not(target_arch = "wasm32"))]
     fn open_dropped(&mut self, f: egui::DroppedFileHandle, _ctx: &egui::Context) {
+        let _locale = crate::i18n::scope(self.language);
         let p = f.path().to_string_lossy().into_owned();
         if !p.is_empty() && f.path().is_absolute() {
             self.open_path(&p);
@@ -649,16 +664,17 @@ impl PrintCraftApp {
         match f.bytes() {
             Ok(bytes) => {
                 if let Err(e) = self.open_bytes(&name, None, bytes) {
-                    self.notify(format!("Couldn't open {name}: {e}"));
+                    self.notify(crate::msg!(couldn_t_open_value_value, name = name, e = e));
                 }
             }
-            Err(e) => self.notify(format!("Couldn't read {name}: {e}")),
+            Err(e) => self.notify(crate::msg!(couldn_t_read_value_value, name = name, e = e)),
         }
     }
 
     /// Browsers read dropped files asynchronously; the bytes land in `inbox` and open next frame.
     #[cfg(target_arch = "wasm32")]
     fn open_dropped(&mut self, f: egui::DroppedFileHandle, ctx: &egui::Context) {
+        let _locale = crate::i18n::scope(self.language);
         let inbox = self.inbox.clone();
         let ctx = ctx.clone();
         wasm_bindgen_futures::spawn_local(async move {
@@ -674,42 +690,45 @@ impl PrintCraftApp {
 
     /// Save an attachment to disk, or open a PDF attachment in a new tab.
     pub fn attachment_action(&mut self, doc: DocId, index: usize, open: bool) {
+        let _locale = crate::i18n::scope(self.language);
         let Some(d) = self.session.get(doc) else { return };
         let Some(att) = d.info.attachments.get(index).cloned() else { return };
         let data = printcraft_render::attachment_data(&d.bytes, d.password.as_deref(), &att);
         match (data, open) {
-            (Err(e), _) => self.notify(format!("Couldn't read {}: {e}", att.name)),
+            (Err(e), _) => self.notify(crate::msg!(couldn_t_read_value_value_decf41, att.name, e = e)),
             (Ok(bytes), true) => {
                 if let Err(e) = self.open_bytes(&att.name, None, bytes) {
-                    self.notify(format!("Couldn't open {}: {e}", att.name));
+                    self.notify(crate::msg!(couldn_t_open_value_value_702742, att.name, e = e));
                 }
             }
             (Ok(bytes), false) => {
                 #[cfg(not(target_arch = "wasm32"))]
                 if let Some(path) = rfd::FileDialog::new().set_file_name(&att.name).save_file() {
                     match std::fs::write(&path, &bytes) {
-                        Ok(()) => self.notify(format!("Saved {}", path.display())),
-                        Err(e) => self.notify(format!("Couldn't save: {e}")),
+                        Ok(()) => self.notify(crate::msg!(saved_value, path.display())),
+                        Err(e) => self.notify(crate::msg!(couldn_t_save_value, e = e)),
                     }
                 }
                 #[cfg(target_arch = "wasm32")]
-                self.notify(format!("Downloading attachments on the web arrives with M3.10 ({} bytes ready)", bytes.len()));
+                self.notify(crate::msg!(downloading_attachments_on_the_web_arrives_with_m3_10_value_bytes_ready, bytes.len()));
             }
         }
     }
 
     /// Enter or leave full-screen reading (Acrobat: View ▸ Full Screen Mode, ⌘L).
     pub fn set_full_screen(&mut self, ctx: &egui::Context, on: bool) {
+        let _locale = crate::i18n::scope(self.language);
         self.full_screen = on;
         ctx.send_viewport_cmd(egui::ViewportCommand::Fullscreen(on));
     }
 
     /// Answer the password prompt (`None` cancels).
     pub fn submit_password(&mut self, password: Option<String>) {
+        let _locale = crate::i18n::scope(self.language);
         let Some(p) = self.password_prompt.take() else { return };
         let Some(pw) = password else { return };
         match self.try_open(&p.name, p.path, p.bytes, Some(&pw)) {
-            Err(e) => self.notify(format!("Couldn't open {}: {e}", p.name)),
+            Err(e) => self.notify(crate::msg!(couldn_t_open_value_value_702742, p.name, e = e)),
             // A recovered encrypted document is open once the prompt is gone.
             Ok(()) if self.password_prompt.is_none() => {
                 if let Some(meta) = self.pending_recovered.clone() {
@@ -722,21 +741,25 @@ impl PrintCraftApp {
 
     #[cfg(not(target_arch = "wasm32"))]
     pub fn open_path(&mut self, path: &str) {
+        let _locale = crate::i18n::scope(self.language);
         let name = std::path::Path::new(path).file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| path.to_string());
         match std::fs::read(path) {
             Ok(bytes) => {
                 if let Err(e) = self.open_bytes(&name, Some(path.to_string()), bytes) {
-                    self.notify(format!("Couldn't open {name}: {e}"));
+                    self.notify(crate::msg!(couldn_t_open_value_value, name = name, e = e));
                 }
             }
-            Err(e) => self.notify(format!("Couldn't read {name}: {e}")),
+            Err(e) => self.notify(crate::msg!(couldn_t_read_value_value, name = name, e = e)),
         }
     }
 
     pub fn open_dialog(&mut self) {
+        let _locale = crate::i18n::scope(self.language);
         #[cfg(not(target_arch = "wasm32"))]
-        if let Some(p) =
-            rfd::FileDialog::new().add_filter("PDF", &["pdf"]).add_filter("Images and text (converted to PDF)", &create_ui::CONVERTIBLE).pick_file()
+        if let Some(p) = rfd::FileDialog::new()
+            .add_filter("PDF", &["pdf"])
+            .add_filter(crate::i18n::text("ui.images_and_text_converted_to_pdf"), &create_ui::CONVERTIBLE)
+            .pick_file()
         {
             self.open_path(&p.to_string_lossy());
         }
@@ -745,8 +768,11 @@ impl PrintCraftApp {
         {
             let inbox = self.inbox.clone();
             wasm_bindgen_futures::spawn_local(async move {
-                if let Some(h) =
-                    rfd::AsyncFileDialog::new().add_filter("PDF", &["pdf"]).add_filter("Images and text", &create_ui::CONVERTIBLE).pick_file().await
+                if let Some(h) = rfd::AsyncFileDialog::new()
+                    .add_filter("PDF", &["pdf"])
+                    .add_filter(crate::i18n::text("ui.images_and_text"), &create_ui::CONVERTIBLE)
+                    .pick_file()
+                    .await
                 {
                     let bytes = h.read().await;
                     if let Ok(mut q) = inbox.lock() {
@@ -758,6 +784,7 @@ impl PrintCraftApp {
     }
 
     pub fn close_tab(&mut self, index: usize) {
+        let _locale = crate::i18n::scope(self.language);
         if index >= self.views.len() {
             return;
         }
@@ -772,12 +799,14 @@ impl PrintCraftApp {
     }
 
     pub fn active_ids(&self) -> Option<(usize, DocId)> {
+        let _locale = crate::i18n::scope(self.language);
         self.active.and_then(|i| self.views.get(i).map(|v| (i, v.id)))
     }
 
     /// Enable the UI control channel on `ctx` (opt-in; see [`control`]). Returns a client that
     /// sends requests to this app; [`control::serve`] exposes it on loopback.
     pub fn attach_control(&mut self, ctx: &egui::Context) -> control::ControlClient {
+        let _locale = crate::i18n::scope(self.language);
         let (control, client) = control::attach(ctx);
         self.control = Some(control);
         client
@@ -785,6 +814,7 @@ impl PrintCraftApp {
 
     /// Open a web link in the system browser (a new tab on the web).
     pub fn open_url(&mut self, url: &str) {
+        let _locale = crate::i18n::scope(self.language);
         if let Some(ctx) = &self.ctx {
             ctx.open_url(egui::OpenUrl::new_tab(url));
         }
@@ -792,16 +822,19 @@ impl PrintCraftApp {
     }
 
     pub fn notify(&mut self, msg: impl Into<String>) {
+        let _locale = crate::i18n::scope(self.language);
         self.toast = Some((msg.into(), 0.0));
     }
 
     pub fn set_theme(&mut self, ctx: &egui::Context, kind: ThemeKind) {
+        let _locale = crate::i18n::scope(self.language);
         self.theme = kind;
         theme::apply(ctx, kind);
     }
 
     /// Run a catalogue command. Commands that aren't implemented yet say which milestone ships them.
     pub fn run_command(&mut self, command: &str) {
+        let _locale = crate::i18n::scope(self.language);
         if printcraft_engine::commands::command(command).is_some() {
             self.execute(command);
             return;
@@ -812,16 +845,17 @@ impl PrintCraftApp {
             .flat_map(|g| g.sections.iter().flat_map(|s| s.items.iter()))
             .find(|i| i.command == command)
             .map(|i| match i.availability {
-                printcraft_engine::catalog::Availability::Planned(m) => format!("ships in milestone {m}"),
-                printcraft_engine::catalog::Availability::Provider => "needs an AI provider (off by default)".to_string(),
-                printcraft_engine::catalog::Availability::Ready => "is available".to_string(),
+                printcraft_engine::catalog::Availability::Planned(m) => crate::msg!(ships_in_milestone_value, m = m),
+                printcraft_engine::catalog::Availability::Provider => crate::i18n::text("ui.needs_an_ai_provider_off_by_default").to_string(),
+                printcraft_engine::catalog::Availability::Ready => crate::i18n::text("ui.is_available").to_string(),
             })
-            .unwrap_or_else(|| "is not available yet".into());
+            .unwrap_or_else(|| crate::i18n::text("ui.is_not_available_yet").into());
         self.notify(format!("`{command}` {when}"));
     }
 
     /// Serialize the user's persistent state (recent files, theme). Local only.
     pub fn persist(&self) -> String {
+        let _locale = crate::i18n::scope(self.language);
         let trusted: Vec<String> = self.session.trusted_certificates().iter().map(printcraft_engine::sign::x509::to_pem).collect();
         serde_json::json!({
             "recent": self.recent,
@@ -844,6 +878,7 @@ impl PrintCraftApp {
 
     /// Restore state written by `persist`. Unknown or malformed data is ignored.
     pub fn restore(&mut self, json: &str) {
+        let _locale = crate::i18n::scope(self.language);
         let Ok(v) = serde_json::from_str::<serde_json::Value>(json) else { return };
         if let Ok(r) = serde_json::from_value::<Vec<RecentFile>>(v["recent"].clone()) {
             // Only keep entries whose files still exist.
@@ -889,6 +924,7 @@ impl PrintCraftApp {
 
     /// `true` while any open document still waits for page renders (used by headless capture).
     pub fn render_pending(&self) -> bool {
+        let _locale = crate::i18n::scope(self.language);
         self.views.iter().any(|v| v.render_pending())
     }
 
@@ -896,10 +932,11 @@ impl PrintCraftApp {
     ///
     /// This is the seed of the UI control channel (M3.9): the same verbs become `ui.set` calls.
     pub fn set_option(&mut self, key: &str, value: &str) -> Result<(), String> {
+        let _locale = crate::i18n::scope(self.language);
         let view = self.active.and_then(|i| self.views.get_mut(i));
         match (key, view) {
             ("language", _) => {
-                self.language = i18n::Language::parse(value).ok_or("language must be en or ja")?;
+                self.language = i18n::Language::parse(value).ok_or("language must be ru, en or ja")?;
             }
             ("theme", _) => {
                 self.follow_system_theme = value == "system";
@@ -1085,6 +1122,7 @@ impl PrintCraftApp {
     }
 
     fn shortcuts(&mut self, ctx: &egui::Context) {
+        let _locale = crate::i18n::scope(self.language);
         use egui::Key;
         // "Save changes?" is modal: its keys are its own (⌘D is Don't save there, not Document
         // properties; Escape cancels it rather than clearing a selection), and nothing may run
@@ -1107,10 +1145,12 @@ impl PrintCraftApp {
 
 impl eframe::App for PrintCraftApp {
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
+        let _locale = crate::i18n::scope(self.language);
         storage.set_string("printcraft", self.persist());
     }
 
     fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        let _locale = crate::i18n::scope(self.language);
         self.ctx = Some(ctx.clone());
         if !self.styled {
             egui_extras::install_image_loaders(ctx);
@@ -1138,7 +1178,7 @@ impl eframe::App for PrintCraftApp {
         let arrived: Vec<(String, Vec<u8>)> = self.inbox.lock().map(|mut q| std::mem::take(&mut *q)).unwrap_or_default();
         for (name, bytes) in arrived {
             if let Err(e) = self.open_bytes(&name, None, bytes) {
-                self.notify(format!("Couldn't open {name}: {e}"));
+                self.notify(crate::msg!(couldn_t_open_value_value, name = name, e = e));
             }
         }
         if let Some(mut control) = self.control.take() {
@@ -1164,17 +1204,14 @@ impl eframe::App for PrintCraftApp {
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        let _locale = crate::i18n::scope(self.language);
         let ctx = ui.ctx().clone();
         // Fonts registered via set_fonts only take effect next frame; named families would panic now.
         if !self.fonts_ready {
             ctx.request_repaint();
             return;
         }
-        // The window shows the active document's name (or title, if it asks for that).
-        let title = self
-            .active
-            .and_then(|i| self.session.get(self.views[i].id))
-            .map_or_else(|| "PrintCraft".to_owned(), |d| format!("{} — PrintCraft", d.display_name()));
+        let title = i18n::PRODUCT_NAME.to_owned();
         if title != self.window_title {
             ctx.send_viewport_cmd(egui::ViewportCommand::Title(title.clone()));
             self.window_title = title;

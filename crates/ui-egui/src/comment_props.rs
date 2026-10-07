@@ -31,10 +31,11 @@ const ICONS: [NoteIcon; 7] =
 impl PrintCraftApp {
     /// Attach file: ask for a file (or take `attach_override`) and attach it at `at`.
     pub fn attach_file_comment(&mut self, page: usize, at: [f64; 2]) {
+        let _locale = crate::i18n::scope(self.language);
         let picked = match self.attach_override.take() {
             Some(f) => Some(f),
             #[cfg(not(target_arch = "wasm32"))]
-            None => rfd::FileDialog::new().set_title("Attach a file").pick_file().and_then(|p| {
+            None => rfd::FileDialog::new().set_title(crate::i18n::text("ui.attach_a_file")).pick_file().and_then(|p| {
                 let data = std::fs::read(&p).ok()?;
                 Some((p.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default(), data))
             }),
@@ -61,6 +62,7 @@ impl PrintCraftApp {
     /// Make Current Properties Default: new comments of this kind take this one's colour,
     /// opacity and line width.
     pub fn make_comment_default(&mut self, page: usize, index: usize) {
+        let _locale = crate::i18n::scope(self.language);
         let Some((_, id)) = self.active_ids() else { return };
         let Some(doc) = self.session.get(id) else { return };
         let Some(a) = doc.info.annotations.iter().find(|a| a.page == page && a.index == index && a.in_reply_to.is_none()) else { return };
@@ -75,11 +77,12 @@ impl PrintCraftApp {
             style.width = w;
         }
         self.comment_prefs.set_style(tool, style);
-        self.notify(format!("New {} comments will look like this one", tool.label().to_lowercase()));
+        self.notify(crate::msg!(new_value_comments_will_look_like_this_one, tool.label().to_lowercase()));
     }
 
     /// Open Comment Properties for the comment at `(page, index)` of the active document.
     pub fn open_comment_props(&mut self, page: usize, index: usize) {
+        let _locale = crate::i18n::scope(self.language);
         let Some((_, id)) = self.active_ids() else { return };
         let Some(p) = self.session.get(id).and_then(|d| d.comment_props(page, index)) else { return };
         self.comment_props = Some(PropsDraft { page, index, tab: PropsTab::Appearance, original: p.clone(), edited: p });
@@ -132,10 +135,14 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PrintCraftApp, t: &Tokens) -> (b
         .unwrap_or_default();
     let Some(d) = app.comment_props.as_mut() else { return (false, true) };
     let kind = crate::comments_panel::subtype_label(&d.edited.subtype).to_string();
-    ui.label(egui::RichText::new(format!("{kind} Properties")).font(theme::semibold(18.0)));
+    ui.label(egui::RichText::new(crate::msg!(value_properties, kind = kind)).font(theme::semibold(18.0)));
     ui.add_space(6.0);
     ui.horizontal(|ui| {
-        for (tab, label) in [(PropsTab::Appearance, "Appearance"), (PropsTab::General, "General"), (PropsTab::ReviewHistory, "Review History")] {
+        for (tab, label) in [
+            (PropsTab::Appearance, crate::i18n::text("ui.appearance")),
+            (PropsTab::General, crate::i18n::text("ui.general")),
+            (PropsTab::ReviewHistory, crate::i18n::text("ui.review_history")),
+        ] {
             if widgets::mode_tab(ui, label, d.tab == tab).clicked() {
                 d.tab = tab;
             }
@@ -147,12 +154,12 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PrintCraftApp, t: &Tokens) -> (b
     match d.tab {
         PropsTab::Appearance => {
             if !e.restylable {
-                ui.label(egui::RichText::new("This comment's appearance can't be changed yet.").color(t.text_muted));
+                ui.label(egui::RichText::new(crate::i18n::text("ui.this_comment_s_appearance_can_t_be_changed_yet")).color(t.text_muted));
             }
             ui.add_enabled_ui(e.restylable, |ui| {
                 egui::Grid::new("comment-props").num_columns(2).spacing([12.0, 10.0]).show(ui, |ui| {
                     if let Some(icon) = e.icon.as_mut() {
-                        ui.label("Icon");
+                        ui.label(crate::i18n::text("ui.icon"));
                         egui::ComboBox::from_id_salt("note-icon").selected_text(icon.name()).show_ui(ui, |ui| {
                             for i in ICONS {
                                 ui.selectable_value(icon, i, i.name());
@@ -160,20 +167,20 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PrintCraftApp, t: &Tokens) -> (b
                         });
                         ui.end_row();
                     }
-                    ui.label("Colour");
+                    ui.label(crate::i18n::text("ui.colour"));
                     if let Some(c) = swatch_grid(ui, e.color) {
                         e.color = Some(c);
                     }
                     ui.end_row();
-                    ui.label("Opacity");
+                    ui.label(crate::i18n::text("ui.opacity"));
                     let mut pct = e.opacity * 100.0;
                     if ui.add(egui::Slider::new(&mut pct, 0.0..=100.0).suffix("%")).changed() {
                         e.opacity = pct / 100.0;
                     }
                     ui.end_row();
                     if let Some(w) = e.width.as_mut() {
-                        ui.label("Thickness");
-                        ui.add(egui::Slider::new(w, 0.5..=12.0).step_by(0.5).suffix(" pt"));
+                        ui.label(crate::i18n::text("ui.thickness"));
+                        ui.add(egui::Slider::new(w, 0.5..=12.0).step_by(0.5).suffix(crate::i18n::text("ui.pt")));
                         ui.end_row();
                     }
                 });
@@ -181,20 +188,20 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PrintCraftApp, t: &Tokens) -> (b
         }
         PropsTab::General => {
             egui::Grid::new("comment-general").num_columns(2).spacing([12.0, 10.0]).show(ui, |ui| {
-                let l = ui.label("Author");
+                let l = ui.label(crate::i18n::text("ui.author"));
                 ui.add(egui::TextEdit::singleline(&mut e.author).desired_width(280.0)).labelled_by(l.id);
                 ui.end_row();
-                let l = ui.label("Subject");
+                let l = ui.label(crate::i18n::text("ui.subject"));
                 ui.add(egui::TextEdit::singleline(&mut e.subject).desired_width(280.0)).labelled_by(l.id);
                 ui.end_row();
-                ui.label("Modified");
+                ui.label(crate::i18n::text("ui.modified"));
                 ui.label(e.modified.as_deref().map(printcraft_render::pretty_date).unwrap_or_else(|| "—".into()));
                 ui.end_row();
             });
         }
         PropsTab::ReviewHistory => {
             if history.is_empty() {
-                ui.label(egui::RichText::new("No status has been set.").color(t.text_muted));
+                ui.label(egui::RichText::new(crate::i18n::text("ui.no_status_has_been_set")).color(t.text_muted));
             }
             for (state, who, when) in &history {
                 ui.label(format!("{state} — {who}  {when}"));
@@ -202,13 +209,13 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PrintCraftApp, t: &Tokens) -> (b
         }
     }
     ui.add_space(12.0);
-    ui.checkbox(&mut d.edited.locked, "Locked");
+    ui.checkbox(&mut d.edited.locked, crate::i18n::text("ui.locked"));
     let (mut apply, mut cancel) = (false, false);
     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-        if widgets::pill_button(ui, "OK", true).clicked() {
+        if widgets::pill_button(ui, crate::i18n::text("ui.ok"), true).clicked() {
             apply = true;
         }
-        if widgets::pill_button(ui, "Cancel", false).clicked() {
+        if widgets::pill_button(ui, crate::i18n::text("ui.cancel"), false).clicked() {
             cancel = true;
         }
     });

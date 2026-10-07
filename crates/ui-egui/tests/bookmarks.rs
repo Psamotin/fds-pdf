@@ -1,5 +1,7 @@
 //! Editing bookmarks in the Bookmarks panel (M4.6), driven like a user would.
 
+mod support;
+
 use egui::{Key, Modifiers};
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
@@ -16,7 +18,7 @@ trailer << /Root 1 0 R >>
 
 fn harness() -> Harness<'static, PrintCraftApp> {
     let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(|_cc| {
-        let mut app = PrintCraftApp::new();
+        let mut app = support::english_app();
         app.open_bytes("pages.pdf", None, PAGES.to_vec()).expect("opens");
         app.set_option("left", "closed").unwrap();
         app.set_option("panel", "bookmarks").unwrap();

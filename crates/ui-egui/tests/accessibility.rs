@@ -1,6 +1,8 @@
 //! Prepare for accessibility ▸ Check for accessibility in the real shell (egui_kittest): the
 //! options dialog, the results panel, Fix, Skip Rule and the report.
 
+mod support;
+
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
 use printcraft_engine::a11y::{Rule, Status};
@@ -37,7 +39,7 @@ fn checking_fixing_skipping_and_reporting() {
     std::fs::create_dir_all(&dir).unwrap();
     let d = dir.clone();
     let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(move |_cc| {
-        let mut app = PrintCraftApp::new();
+        let mut app = support::english_app();
         app.open_bytes("notes.pdf", None, FIXTURE.to_vec()).unwrap();
         app.export_dir_override = Some(d.to_string_lossy().into_owned());
         app
@@ -61,7 +63,7 @@ fn checking_fixing_skipping_and_reporting() {
     h.run_steps(3);
     assert_eq!(status(&h, Rule::Title), Status::Passed);
     assert!(matches!(h.state().dialog, Some(Dialog::Properties(_))));
-    assert_eq!(h.state().window_title, "notes — PrintCraft");
+    assert_eq!(h.state().window_title, "ФДС ПДФ");
     h.state_mut().dialog = None;
     h.run_steps(2);
     // Skip a rule; it stays skipped when checking again.
@@ -109,7 +111,7 @@ trailer << /Root 1 0 R >>
 #[test]
 fn setting_alternate_text_figure_by_figure() {
     let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(move |_cc| {
-        let mut app = PrintCraftApp::new();
+        let mut app = support::english_app();
         app.open_bytes("figures.pdf", None, FIGURES.to_vec()).unwrap();
         app
     });

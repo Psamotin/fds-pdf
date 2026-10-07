@@ -1,10 +1,12 @@
 //! Compare files in the real shell (egui_kittest): the dialog, the Compare panel, marks and
 //! the report.
 
+mod support;
+
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
 use printcraft_engine::Session;
-use printcraft_ui_egui::{PrintCraftApp, RightPanel};
+use printcraft_ui_egui::RightPanel;
 
 #[test]
 fn compare_two_versions() {
@@ -12,7 +14,7 @@ fn compare_two_versions() {
     let v1 = s.create_from_text("t", "Delivery within five days. Returns accepted.").unwrap().to_vec();
     let v2 = s.create_from_text("t", "Delivery within three days. Returns accepted for a week.").unwrap().to_vec();
     let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(move |_cc| {
-        let mut app = PrintCraftApp::new();
+        let mut app = support::english_app();
         app.open_bytes("v1.pdf", None, v1.clone()).unwrap();
         app.open_bytes("v2.pdf", None, v2.clone()).unwrap();
         app
@@ -48,7 +50,7 @@ fn compare_panel_screenshot() {
     let v1 = s.create_from_text("t", "Delivery within five days. Returns accepted.").unwrap().to_vec();
     let v2 = s.create_from_text("t", "Delivery within three days. Returns accepted for a week.").unwrap().to_vec();
     let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(move |_cc| {
-        let mut app = PrintCraftApp::new();
+        let mut app = support::english_app();
         app.open_bytes("v1.pdf", None, v1.clone()).unwrap();
         app.open_bytes("v2.pdf", None, v2.clone()).unwrap();
         app
@@ -67,7 +69,7 @@ fn compare_panel_screenshot() {
 fn pdfa_dialog_verifies_and_converts() {
     let doc = Session::new().create_from_text("t", "Keep forever").unwrap().to_vec();
     let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(move |_cc| {
-        let mut app = PrintCraftApp::new();
+        let mut app = support::english_app();
         app.open_bytes("keep.pdf", None, doc.clone()).unwrap();
         app
     });
@@ -92,7 +94,7 @@ fn export_to_word_html_and_rtf() {
     let doc = Session::new().create_from_text("t", "Exported words").unwrap().to_vec();
     let dir = std::env::temp_dir().join(format!("printcraft-office-ui-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
-    let mut app = PrintCraftApp::new();
+    let mut app = support::english_app();
     app.open_bytes("e.pdf", None, doc).unwrap();
     for ext in ["docx", "html", "rtf"] {
         let out = dir.join(format!("e.{ext}"));

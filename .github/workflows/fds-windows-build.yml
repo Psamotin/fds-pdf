@@ -1,44 +1,167 @@
-name: FDS PDF Windows Build
+name: FDS PDF R2 RC1 Windows Build
 
 on:
   workflow_dispatch:
   push:
-    branches:
-      - main
+    branches: [main, fds-pdf-r1-branding-ru, fds-pdf-r2-ocr-rc1]
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/printcraft/**'
+      - 'crates/ui-egui/**'
+      - 'assets/fds-pdf/**'
+      - 'packaging/fds/**'
+      - 'xtask/**'
+      - 'Cargo.lock'
+      - '.github/workflows/fds-windows-build.yml'
+
+concurrency:
+  group: fds-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  FDS_VERSION: 0.2.0-fds.1-rc1
+  PRINTCRAFT_REQUIRE_WINRES: '1'
+  CARGO_INCREMENTAL: '0'
+  CARGO_PROFILE_DEV_DEBUG: '0'
+  CARGO_PROFILE_TEST_DEBUG: '0'
+  CARGO_BUILD_JOBS: '2'
+  PYTHONUTF8: '1'
 
 jobs:
   windows-x64:
     runs-on: windows-latest
-
+    outputs:
+      artifact_url: ${{ steps.upload.outputs.artifact-url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Preflight pinned Tesseract models in a Unicode directory
+        shell: pwsh
+        run: |
+          python packaging/fds/preflight.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Install Rust 1.95
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: 1.95.0
+          components: rustfmt
 
-      - name: Show toolchain
+      - name: Cache Rust build dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+
+      - name: Check format and product version
         shell: pwsh
         run: |
-          rustc --version
-          cargo --version
+          cargo fmt --all -- --check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $metadata = cargo metadata --locked --no-deps --format-version 1 | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $product = $metadata.packages | Where-Object { $_.name -eq 'printcraft' }
+          if ($product.version -ne $env:FDS_VERSION) { throw 'Product version does not match artifact version' }
 
-      - name: Build PrintCraft baseline
+      - name: Test desktop UI and application
+        shell: pwsh
+        run: |
+          cargo test --locked -p printcraft-ui-egui -p printcraft
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Build FDS PDF R2 RC1
         shell: pwsh
         run: |
           cargo build --release --locked -p printcraft
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: Verify EXE
+      - name: Package embedded local OCR and smoke after relocation
         shell: pwsh
         run: |
-          Get-Item target\release\printcraft.exe |
-            Select-Object FullName, Length, LastWriteTime
+          python packaging/fds/test_source_notices.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python packaging/fds/package.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $out = "dist/FDS-PDF-$env:FDS_VERSION-windows-x64"
+          $exe = Get-Item "$out/FDS-PDF.exe"
+          if ($exe.VersionInfo.ProductName -ne 'ФДС ПДФ') { throw 'Incorrect Windows product name' }
+          if ($exe.VersionInfo.ProductVersion -ne $env:FDS_VERSION) { throw 'Incorrect Windows product version' }
+          # The official executable has no VERSIONINFO; verify its immutable hash.
+          # smoke.py separately checks its exact native CLI version/date.
+          $runtime = Get-Content 'packaging/fds/runtime-lock.json' -Raw | ConvertFrom-Json
+          $pinned = $runtime.tesseract.files | Where-Object { $_.filename -eq 'tesseract.exe' }
+          $hash = Get-FileHash "$out/OCR/Tesseract-OCR/tesseract.exe" -Algorithm SHA256
+          if ($hash.Hash -ne $pinned.sha256.ToUpperInvariant()) { throw 'Incorrect pinned Tesseract binary checksum' }
 
-      - name: Upload Windows build
+      - name: Upload Windows release candidate
+        id: upload
         uses: actions/upload-artifact@v4
         with:
-          name: fds-pdf-windows-x64-baseline
-          path: target/release/printcraft.exe
+          name: FDS-PDF-${{ env.FDS_VERSION }}-windows-x64
+          path: |
+            dist/FDS-PDF-${{ env.FDS_VERSION }}-windows-x64/
+            dist/build-report.json
           if-no-files-found: error
+          compression-level: 6
+          retention-days: 30
+
+      - name: Record uploaded artifact size and digest
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: artifact } = await github.rest.actions.getArtifact({
+              ...context.repo, artifact_id: Number('${{ steps.upload.outputs.artifact-id }}')
+            });
+            await core.summary.addCodeBlock(JSON.stringify({
+              git_head: context.sha,
+              artifact_name: artifact.name,
+              artifact_size_bytes: artifact.size_in_bytes,
+              artifact_digest: artifact.digest,
+              artifact_url: '${{ steps.upload.outputs.artifact-url }}'
+            }, null, 2), 'json').write();
+
+  review-pr:
+    needs: windows-x64
+    if: github.event_name == 'push' && github.ref == 'refs/heads/fds-pdf-r2-ocr-rc1'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Create or update the unmerged release candidate PR
+        uses: actions/github-script@v7
+        env:
+          ARTIFACT_URL: ${{ needs.windows-x64.outputs.artifact_url }}
+        with:
+          script: |
+            const head = 'fds-pdf-r2-ocr-rc1';
+            const { data: branch } = await github.rest.repos.getBranch({ ...context.repo, branch: head });
+            if (branch.commit.sha !== context.sha) { core.info('Skipping PR update from a superseded commit'); return; }
+            const title = 'FDS-PDF-R2-RC1: Russian UI, approved icon and portable local OCR';
+            const body = [
+              'Подготавливает ФДС ПДФ 0.2.0-fds.1-rc1: русскую локализацию R1, утверждённую иконку и локальное распознавание в существующем Scan & OCR UI.',
+              '',
+              'OCR получает снимок документа, сохраняет новый *_OCR.pdf без перезаписи и предлагает открыть результат. Процессы скрыты; Windows Job Object завершает дерево процессов при отмене.',
+              '',
+              'В комплекте закреплены Python 3.13.15, OCRmyPDF 17.4.0, Tesseract 5.5.3.20260724 и rus/eng/osd. Приложены лицензии, исходники runtime и контрольные суммы.',
+              '',
+              'PDF engine, crate names, command IDs и обычное открытие/сохранение сохранены. Cargo binary остаётся printcraft; артефакт содержит FDS-PDF.exe.',
+              '',
+              'Windows: fmt, затронутые тесты, release --locked и smoke после переноса комплекта прошли.',
+              `Артефакт: ${process.env.ARTIFACT_URL}`,
+              `Сборка: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              '',
+              'Ручная приёмка Windows 11 ещё не выполнена. PR должен оставаться unmerged до MANUAL_WINDOWS_ACCEPTANCE_FDS_PDF_R2_RC1.',
+              'Подробности и чек-лист: docs/fds/FDS-PDF-R2-RC1.md.'
+            ].join('\n');
+            const { data: existing } = await github.rest.pulls.list({ ...context.repo, state: 'open', head: `${context.repo.owner}:${head}`, base: 'main' });
+            const request = { ...context.repo, title, body };
+            const { data: pr } = existing.length
+              ? await github.rest.pulls.update({ ...request, pull_number: existing[0].number })
+              : await github.rest.pulls.create({ ...request, head, base: 'main', draft: true });
+            await core.summary.addLink('Release candidate PR (unmerged)', pr.html_url).write();

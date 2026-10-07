@@ -24,12 +24,7 @@ mod updates;
 /// Freedesktop app id: the `.desktop` file name and the hicolor icon name.
 const APP_ID: &str = "ai.storyteller.printcraft";
 
-/// The app icon (assets/app-icon/README.md). macOS gets the version on Apple's icon grid, with a
-/// transparent margin; Windows and Linux get the full-bleed tile.
-#[cfg(target_os = "macos")]
-const APP_ICON_PNG: &[u8] = include_bytes!("../../../assets/app-icon/printcraft-1024.png");
-#[cfg(not(target_os = "macos"))]
-const APP_ICON_PNG: &[u8] = include_bytes!("../../../assets/app-icon/hicolor/256x256/apps/ai.storyteller.printcraft.png");
+const FDS_ICON_PNG: &[u8] = include_bytes!("../../../assets/fds-pdf/fds-pdf-window.png");
 
 fn main() -> eframe::Result {
     // Last-resort guard (AGENTS.md §4): commands, edits, opens and saves catch panics and report
@@ -48,7 +43,7 @@ fn main() -> eframe::Result {
     while let Some(a) = args.next() {
         match a.as_str() {
             "--version" => {
-                println!("printcraft {}", env!("CARGO_PKG_VERSION"));
+                println!("{} {}", printcraft_ui_egui::i18n::PRODUCT_NAME, env!("CARGO_PKG_VERSION"));
                 return Ok(());
             }
             "--control" => control_file = args.next(),
@@ -61,16 +56,15 @@ fn main() -> eframe::Result {
     }
     let integrated = cfg!(target_os = "macos");
     let mut viewport = egui::ViewportBuilder::default()
-        .with_title("PrintCraft")
+        .with_title(printcraft_ui_egui::i18n::PRODUCT_NAME)
         .with_inner_size([1440.0, 920.0])
         .with_min_inner_size([820.0, 520.0])
         .with_drag_and_drop(true)
         // Wayland app id: matches packaging/linux/ai.storyteller.printcraft.desktop.
         .with_app_id(APP_ID);
-    // Dock, taskbar, Alt-Tab and launcher icon when running unbundled.
-    match eframe::icon_data::from_png_bytes(APP_ICON_PNG) {
+    match eframe::icon_data::from_png_bytes(FDS_ICON_PNG) {
         Ok(icon) => viewport = viewport.with_icon(icon),
-        Err(e) => eprintln!("printcraft: app icon: {e}"),
+        Err(error) => eprintln!("FDS-PDF: window icon: {error}"),
     }
     if integrated {
         viewport = viewport.with_fullsize_content_view(true).with_titlebar_shown(false).with_title_shown(false);
@@ -80,10 +74,15 @@ fn main() -> eframe::Result {
     let mut native = eframe::NativeOptions { viewport, persistence_path, ..Default::default() };
     configure_gpu(&mut native);
     eframe::run_native(
-        "PrintCraft",
+        printcraft_ui_egui::i18n::PRODUCT_NAME,
         native,
         Box::new(move |cc| {
             let mut app = PrintCraftApp::new();
+            #[cfg(windows)]
+            match std::env::current_exe().map_err(|error| error.to_string()).and_then(|exe| app.enable_local_ocr(&exe).map_err(|e| e.details)) {
+                Ok(()) => {}
+                Err(error) => eprintln!("FDS-PDF: OCR runtime location: {error}"),
+            }
             if let Some(json) = cc.storage.and_then(|s| s.get_string("printcraft")) {
                 app.restore(&json);
             }
@@ -156,6 +155,10 @@ fn configure_gpu(native: &mut eframe::NativeOptions) {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn desktop_version_matches_ui_product_resource() {
+        assert_eq!(env!("CARGO_PKG_VERSION"), printcraft_ui_egui::i18n::PRODUCT_VERSION);
+    }
     #[test]
     fn gpu_backends_avoid_vulkan_on_windows_and_prefer_low_power() {
         let mut native = eframe::NativeOptions::default();

@@ -37,7 +37,7 @@ pub fn colour(kind: Kind) -> Color32 {
 
 /// The Compare Files dialog: pick the older document. Returns (compare, cancel).
 pub(crate) fn body(ui: &mut egui::Ui, app: &mut PrintCraftApp, t: &Tokens) -> (bool, bool) {
-    ui.label(egui::RichText::new("Compare Files").font(theme::semibold(18.0)));
+    ui.label(egui::RichText::new(crate::i18n::text("ui.compare_files")).font(theme::semibold(18.0)));
     ui.add_space(8.0);
     let Some((_, new)) = app.active_ids() else { return (false, true) };
     let others: Vec<(DocId, String)> =
@@ -47,28 +47,35 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PrintCraftApp, t: &Tokens) -> (b
     }
     let new_name = app.session.get(new).map(|d| d.name.clone()).unwrap_or_default();
     egui::Grid::new("compare-files").num_columns(2).spacing([12.0, 10.0]).show(ui, |ui| {
-        ui.label("Old file:");
-        let shown = others.iter().find(|(id, _)| Some(*id) == app.compare_old).map_or("Open the older version first", |(_, n)| n.as_str());
+        ui.label(crate::i18n::text("ui.old_file"));
+        let shown = others
+            .iter()
+            .find(|(id, _)| Some(*id) == app.compare_old)
+            .map_or(crate::i18n::text("ui.open_the_older_version_first"), |(_, n)| n.as_str());
         egui::ComboBox::from_id_salt("compare-old").selected_text(shown).width(320.0).show_ui(ui, |ui| {
             for (id, n) in &others {
                 ui.selectable_value(&mut app.compare_old, Some(*id), n);
             }
         });
         ui.end_row();
-        ui.label("New file:");
+        ui.label(crate::i18n::text("ui.new_file"));
         ui.label(egui::RichText::new(new_name).strong());
         ui.end_row();
     });
     ui.add_space(4.0);
-    ui.label(egui::RichText::new("Text is compared word by word; the differences are shown on the new file.").small().color(t.text_muted));
+    ui.label(
+        egui::RichText::new(crate::i18n::text("ui.text_is_compared_word_by_word_the_differences_are_shown_on_the_new_file"))
+            .small()
+            .color(t.text_muted),
+    );
     ui.add_space(10.0);
     let (mut go, mut cancel) = (false, false);
     ui.horizontal(|ui| {
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-            if ui.add_enabled_ui(app.compare_old.is_some(), |ui| widgets::pill_button(ui, "Compare", true)).inner.clicked() {
+            if ui.add_enabled_ui(app.compare_old.is_some(), |ui| widgets::pill_button(ui, crate::i18n::text("ui.compare"), true)).inner.clicked() {
                 go = true;
             }
-            if widgets::pill_button(ui, "Cancel", false).clicked() {
+            if widgets::pill_button(ui, crate::i18n::text("ui.cancel"), false).clicked() {
                 cancel = true;
             }
         })
@@ -79,13 +86,13 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PrintCraftApp, t: &Tokens) -> (b
 /// The Compare panel.
 pub(crate) fn panel(ui: &mut egui::Ui, t: &Tokens, state: &Option<CompareState>, id: DocId) -> Option<PanelAction> {
     let Some(s) = state.as_ref().filter(|s| s.new == id) else {
-        ui.label(egui::RichText::new("Compare this file with an older version: Compare files… in All tools.").color(t.text_muted));
+        ui.label(egui::RichText::new(crate::i18n::text("ui.compare_this_file_with_an_older_version_compare_files_in_all_tools")).color(t.text_muted));
         return None;
     };
     let mut action = None;
     let c = &s.result;
     if c.identical() {
-        ui.label("No differences in the text.");
+        ui.label(crate::i18n::text("ui.no_differences_in_the_text"));
     }
     ui.horizontal_wrapped(|ui| {
         for k in [Kind::Replaced, Kind::Inserted, Kind::Deleted] {
@@ -95,17 +102,17 @@ pub(crate) fn panel(ui: &mut egui::Ui, t: &Tokens, state: &Option<CompareState>,
         }
         let (dot, _) = ui.allocate_exact_size(egui::vec2(10.0, 10.0), egui::Sense::hover());
         ui.painter().rect_filled(dot, egui::CornerRadius::same(2), VISUAL);
-        ui.label(format!("{} Visual", s.visual.len()));
+        ui.label(crate::msg!(value_visual, s.visual.len()));
     });
     ui.add_space(6.0);
     ui.horizontal(|ui| {
-        if ui.button("Mark as comments").clicked() {
+        if ui.button(crate::i18n::text("ui.mark_as_comments")).clicked() {
             action = Some(PanelAction::Mark);
         }
-        if ui.button("Report…").clicked() {
+        if ui.button(crate::i18n::text("ui.report_a89f22")).clicked() {
             action = Some(PanelAction::Report);
         }
-        if ui.button("Clear").clicked() {
+        if ui.button(crate::i18n::text("ui.clear")).clicked() {
             action = Some(PanelAction::Clear);
         }
     });
@@ -122,7 +129,7 @@ pub(crate) fn panel(ui: &mut egui::Ui, t: &Tokens, state: &Option<CompareState>,
                 let (bar, _) = ui.allocate_exact_size(egui::vec2(4.0, 34.0), egui::Sense::hover());
                 ui.painter().rect_filled(bar, egui::CornerRadius::same(2), colour(ch.kind));
                 ui.vertical(|ui| {
-                    ui.label(egui::RichText::new(format!("{} · page {}", ch.kind.label(), ch.new.page + 1)).small().color(t.text_muted));
+                    ui.label(egui::RichText::new(crate::msg!(value_page_value_c4b4c2, ch.kind.label(), ch.new.page + 1)).small().color(t.text_muted));
                     ui.selectable_label(selected, text)
                 })
                 .inner
@@ -139,6 +146,7 @@ pub(crate) fn panel(ui: &mut egui::Ui, t: &Tokens, state: &Option<CompareState>,
 impl PrintCraftApp {
     /// Compare the chosen older document with the active one and show the differences.
     pub fn run_compare(&mut self) {
+        let _locale = crate::i18n::scope(self.language);
         let Some((i, new)) = self.active_ids() else { return };
         let Some(old) = self.compare_old else { return };
         match self.session.compare(old, new) {
@@ -162,9 +170,9 @@ impl PrintCraftApp {
                 self.compare = Some(crate::compare_ui::CompareState { old, new, result, visual, selected: None });
                 self.right = Some(RightPanel::Compare);
                 self.notify(if n == 0 {
-                    "The text is the same".to_string()
+                    crate::i18n::text("ui.the_text_is_the_same").to_string()
                 } else {
-                    format!("{n} difference{} found", if n == 1 { "" } else { "s" })
+                    crate::msg!(value_difference_value_found, crate::i18n::plural_suffix(n), n = n)
                 });
             }
             Err(e) => self.notify(e.to_string()),
@@ -172,6 +180,7 @@ impl PrintCraftApp {
     }
 
     pub(crate) fn compare_action(&mut self, index: usize, a: PanelAction) {
+        let _locale = crate::i18n::scope(self.language);
         let Some(s) = self.compare.as_mut() else { return };
         let (old, new) = (s.old, s.new);
         match a {
@@ -189,7 +198,7 @@ impl PrintCraftApp {
                     if let Some(info) = self.session.get(new).map(|d| d.info.clone()) {
                         self.views[index].document_changed(&info);
                     }
-                    self.notify(format!("Added {n} comment{}", if n == 1 { "" } else { "s" }));
+                    self.notify(crate::msg!(added_value_comment_value, crate::i18n::plural_suffix(n), n = n));
                 }
                 Err(e) => self.notify(e.to_string()),
             },

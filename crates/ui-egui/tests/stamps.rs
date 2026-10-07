@@ -1,13 +1,15 @@
 //! Add a stamp: the palette and placing stamps on the page.
 
+mod support;
+
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
-use printcraft_ui_egui::{PrintCraftApp, QuickTool};
+use printcraft_ui_egui::QuickTool;
 
 #[test]
 fn choosing_and_placing_stamps() {
     let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(|_cc| {
-        let mut app = PrintCraftApp::new();
+        let mut app = support::english_app();
         app.open_bytes("form.pdf", None, include_bytes!("data/form.pdf").to_vec()).unwrap();
         app.set_option("zoom", "150").unwrap();
         app
@@ -46,7 +48,7 @@ fn choosing_and_placing_stamps() {
 #[test]
 fn creating_placing_and_keeping_custom_stamps() {
     let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(|_cc| {
-        let mut app = PrintCraftApp::new();
+        let mut app = support::english_app();
         app.open_bytes("form.pdf", None, include_bytes!("data/form.pdf").to_vec()).unwrap();
         app.set_option("zoom", "150").unwrap();
         app
@@ -87,7 +89,7 @@ fn creating_placing_and_keeping_custom_stamps() {
     assert_eq!(doc.can_undo(), Some("Add stamp"));
     // The library is kept with the app's settings.
     let saved = s.persist();
-    let mut again = PrintCraftApp::new();
+    let mut again = support::english_app();
     again.restore(&saved);
     assert_eq!(again.custom_stamps.len(), 1);
     assert_eq!((again.custom_stamps[0].category.as_str(), again.custom_stamps[0].name.as_str()), ("Company", "logo"));

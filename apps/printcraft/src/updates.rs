@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use printcraft_ui_egui::updates::{RELEASES_PAGE, Release};
 
-const LATEST: &str = "https://api.github.com/repos/storytold/printcraft/releases/latest";
+const LATEST: &str = "https://api.github.com/repos/Psamotin/fds-pdf/releases/latest";
 
 /// The latest release. The answer is untrusted: its size is capped, and only a page under
 /// [`RELEASES_PAGE`] is ever offered for download (anything else falls back to that list).
@@ -17,10 +17,11 @@ pub fn latest_release() -> Result<Release, String> {
     let mut response = agent
         .get(LATEST)
         .header("Accept", "application/vnd.github+json")
-        .header("User-Agent", concat!("PrintCraft/", env!("CARGO_PKG_VERSION")))
+        .header("User-Agent", concat!("FDS-PDF/", env!("CARGO_PKG_VERSION")))
         .call()
-        .map_err(|e| format!("couldn't reach GitHub ({e})"))?;
-    let body = response.body_mut().with_config().limit(1 << 20).read_to_string().map_err(|e| format!("unreadable answer ({e})"))?;
+        .map_err(|e| printcraft_ui_egui::msg!(couldn_t_reach_github_value, e = e))?;
+    let body =
+        response.body_mut().with_config().limit(1 << 20).read_to_string().map_err(|e| printcraft_ui_egui::msg!(unreadable_answer_value, e = e))?;
     parse(&body)
 }
 
@@ -29,14 +30,15 @@ fn os_roots() -> Result<ureq::tls::RootCerts, String> {
     let found = rustls_native_certs::load_native_certs();
     let certs: Vec<ureq::tls::Certificate<'static>> = found.certs.iter().map(|c| ureq::tls::Certificate::from_der(c.as_ref()).to_owned()).collect();
     if certs.is_empty() {
-        return Err("no trusted certificates found on this system".into());
+        return Err(printcraft_ui_egui::i18n::text("ui.no_trusted_certificates_found_on_this_system").into());
     }
     Ok(ureq::tls::RootCerts::new_with_certs(&certs))
 }
 
 fn parse(body: &str) -> Result<Release, String> {
-    let v: serde_json::Value = serde_json::from_str(body).map_err(|e| format!("unreadable answer ({e})"))?;
-    let version = v["tag_name"].as_str().filter(|t| !t.is_empty() && t.len() <= 64).ok_or("no release found")?.to_string();
+    let v: serde_json::Value = serde_json::from_str(body).map_err(|e| printcraft_ui_egui::msg!(unreadable_answer_value, e = e))?;
+    let version =
+        v["tag_name"].as_str().filter(|t| !t.is_empty() && t.len() <= 64).ok_or(printcraft_ui_egui::i18n::text("ui.no_release_found"))?.to_string();
     let url = v["html_url"]
         .as_str()
         .filter(|u| u.strip_prefix(RELEASES_PAGE).is_some_and(|rest| rest.starts_with('/') && !rest.contains(['?', '#', '\\'])))
@@ -51,9 +53,9 @@ mod tests {
 
     #[test]
     fn answers_are_read_and_only_our_release_pages_are_offered() {
-        let r = parse(r#"{"tag_name":"v0.2.0","html_url":"https://github.com/storytold/printcraft/releases/tag/v0.2.0"}"#).unwrap();
-        assert_eq!(r, Release { version: "v0.2.0".into(), url: "https://github.com/storytold/printcraft/releases/tag/v0.2.0".into() });
-        for elsewhere in ["https://example.com/printcraft.exe", "https://github.com/storytold/printcraft/releases.evil/x", "javascript:alert(1)"] {
+        let r = parse(r#"{"tag_name":"v0.2.0","html_url":"https://github.com/Psamotin/fds-pdf/releases/tag/v0.2.0"}"#).unwrap();
+        assert_eq!(r, Release { version: "v0.2.0".into(), url: "https://github.com/Psamotin/fds-pdf/releases/tag/v0.2.0".into() });
+        for elsewhere in ["https://example.com/printcraft.exe", "https://github.com/Psamotin/fds-pdf/releases.evil/x", "javascript:alert(1)"] {
             let r = parse(&format!(r#"{{"tag_name":"v9.9.9","html_url":"{elsewhere}"}}"#)).unwrap();
             assert_eq!(r.url, RELEASES_PAGE, "{elsewhere}");
         }

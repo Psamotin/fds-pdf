@@ -1,6 +1,8 @@
 //! The command registry drives menus, shortcuts and the palette: every registered command must
 //! be implemented, disabled commands must say why, and every surface must reach the same action.
 
+mod support;
+
 use egui::{Key, Modifiers};
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
@@ -34,7 +36,7 @@ fn fixture(n: usize) -> Vec<u8> {
 
 fn harness() -> Harness<'static, PrintCraftApp> {
     let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(|_cc| {
-        let mut app = PrintCraftApp::new();
+        let mut app = support::english_app();
         app.open_bytes("doc.pdf", None, fixture(3)).unwrap();
         app
     });
@@ -67,7 +69,7 @@ fn every_registered_command_is_implemented() {
         if PICKERS.contains(&spec.id) {
             continue;
         }
-        let mut app = PrintCraftApp::new();
+        let mut app = support::english_app();
         if spec.id.starts_with("form.") || spec.id == "comment.flatten" {
             app.open_bytes("form.pdf", None, include_bytes!("data/form.pdf").to_vec()).unwrap();
         } else {
@@ -135,7 +137,7 @@ fn every_registered_command_is_implemented() {
 
 #[test]
 fn disabled_commands_explain_themselves() {
-    let mut app = PrintCraftApp::new();
+    let mut app = support::english_app();
     assert!(!app.execute("file.save"));
     assert_eq!(app.toast.as_ref().map(|t| t.0.as_str()), Some("Open a document first"));
     app.open_bytes("doc.pdf", None, fixture(2)).unwrap();

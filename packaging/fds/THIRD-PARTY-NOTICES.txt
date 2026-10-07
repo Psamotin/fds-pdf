@@ -1,0 +1,47 @@
+FDS PDF is a fork of PrintCraft. Original copyright notices, attribution and
+MIT/Apache-2.0 licences are preserved in LICENSE-MIT, LICENSE-APACHE, NOTICE,
+ATTRIBUTION.md and their referenced licence files.
+The approved FDS icon was supplied by the repository owner. Its unmodified
+source and contributor attribution are retained in the repository.
+
+win32job 2.0.3 by Ohad Ravid: MIT OR Apache-2.0 (LICENSES/Rust/win32job-2.0.3).
+
+The external OCR runtime is a separately executed collection of third-party
+programs and libraries. These are not incorporated into the Rust PDF engine.
+Their original terms apply independently; no additional restrictions are placed
+on recipients' rights to inspect, modify, replace or redistribute these programs.
+
+Python 3.13.15: Python Software Foundation; PSF licence (OCR/Python/LICENSE.txt).
+OCRmyPDF 17.4.0: its contributors; MPL-2.0.
+Tesseract 5.5.3.20260724: Tesseract contributors / Windows build by Stefan Weil;
+Apache-2.0 for Tesseract itself. Its DLL dependencies have their own licences.
+rus, eng, osd models: tesseract-ocr/tessdata_fast contributors; Apache-2.0;
+pinned revision 87416418657359cb625c412a48b6e1d6d41c29bd.
+Tesseract pdf.ttf is retained unchanged from that same pinned binary distribution.
+
+IMPORTANT: the native Tesseract dependency closure includes JBIG-KIT, available
+under GPL-2.0-or-later (the library source notices permit the later-version
+option); the GPL-3.0 option applies to distribution of that externally linked
+runtime. It also includes LGPL libraries (libiconv, libintl/gettext, libidn2,
+libunistring). The fpdf2/img2pdf packages and pi_heif's libheif/libde265 dependencies
+have LGPL terms. OCRmyPDF and pikepdf have MPL terms. Corresponding upstream
+source archives, licence texts and build recipes are included in LICENSES/SOURCES
+and LICENSES/Source-notices, rather than relying on a future download offer.
+No Rust crate source is relicensed by these external process dependencies.
+
+GCC runtime libraries carry GPL-3.0 with GCC Runtime Library Exception 3.1.
+The exception permits eligible independently compiled programs to be conveyed
+under their own terms. MinGW-w64 runtime notices are also retained.
+Python includes Microsoft's redistributable Visual C++ runtime under its
+redistribution terms; the unmodified official Python installation retains those
+notices. Other Python wheels retain their complete bundled third-party notices,
+including PDFium, QPDF, OpenSSL, font and image codec dependencies.
+
+See LICENSES/runtime-lock.json for every pinned URL, version and SHA-256.
+LICENSES/Python-packages contains the unchanged wheel licence/metadata records.
+LICENSES/SOURCES contains original Python package sources, native source archives,
+the Tesseract Windows build scripts and a pinned MSYS2 build recipe snapshot from
+24 July 2026. These recipes include patches and build/install instructions.
+Source archive versions are taken from that upstream snapshot; the release gate
+verifies downloaded hashes and the extracted runtime hashes. No installer is run
+on the recipient's computer and no runtime download is performed by the app.

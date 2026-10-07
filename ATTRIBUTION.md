@@ -4,7 +4,7 @@
 
 Every asset PrintCraft includes, bundles or uses to build its published material, with its author, source and licence. The policy is in [AGENTS.md](AGENTS.md) §1. The machine-readable list, with SHA-256 hashes, is [ATTRIBUTION.toml](ATTRIBUTION.toml). Licence texts are kept beside the assets and summarised in [NOTICE](NOTICE).
 
-## In this repository (244)
+## In this repository (247)
 
 | Asset | Title | Author | Licence | Source | Used for |
 |---|---|---|---|---|---|
@@ -252,6 +252,9 @@ Every asset PrintCraft includes, bundles or uses to build its published material
 | `crates/sign/tests/data/openssl-signed.pdf` | One-page PDF signed with OpenSSL CMS (adbe.pkcs7.detached) by the RSA test key | PrintCraft contributors | MIT OR Apache-2.0 | Contributor-original: hand-written PDF objects; signature made with `openssl cms -sign` over its byte ranges (see crates/sign/tests/data/README.md) | Signature validation tests (crates/sign/tests/pdf.rs): a signature PrintCraft did not make |
 | `assets/icons/clipboard-paste.svg` | Lucide icon "clipboard-paste" | Lucide Contributors (portions Cole Bemis, Feather) | ISC | https://github.com/lucide-icons/lucide (npm lucide-static 1.49.0, icons/clipboard-paste.svg) | UI icon, embedded via crates/ui-egui/src/icon_data.rs |
 | `assets/fonts/DancingScript.ttf` | Dancing Script (variable) | The Dancing Script Project Authors (Pablo Impallari) | OFL-1.1 | https://github.com/google/fonts/blob/9710da1eacb3be272583c3224dcb70f9da6eadbb/ofl/dancingscript/DancingScript%5Bwght%5D.ttf | Fill & Sign typed signatures and initials: the typed name's glyph outlines, drawn as filled paths (the font file itself is not embedded in PDFs) |
+| `assets/fds-pdf/FDS-PDF.png` | FDS PDF corporate icon (FDS-PDF.png) | FDS PDF contributor (user-supplied approved asset) | MIT | User-supplied FDS-PDF.png.zip, 2026-10-06; source PNG SHA256 06a539c67d15487a52d9712f78f137d9bb5016fc5a4205b53b29809083510bed | User-approved, unmodified FDS PDF source artwork |
+| `assets/fds-pdf/fds-pdf-window.png` | FDS PDF corporate icon (fds-pdf-window.png) | FDS PDF contributor (user-supplied approved asset) | MIT | User-supplied FDS-PDF.png.zip, 2026-10-06; source PNG SHA256 06a539c67d15487a52d9712f78f137d9bb5016fc5a4205b53b29809083510bed | Window icon derived by cargo xtask fds-icon |
+| `assets/fds-pdf/fds-pdf.ico` | FDS PDF corporate icon (fds-pdf.ico) | FDS PDF contributor (user-supplied approved asset) | MIT | User-supplied FDS-PDF.png.zip, 2026-10-06; source PNG SHA256 06a539c67d15487a52d9712f78f137d9bb5016fc5a4205b53b29809083510bed | Windows executable and shortcut icon, seven sizes, derived by cargo xtask fds-icon |
 
 ## Compiled in through dependencies (6)
 
@@ -264,7 +267,7 @@ Every asset PrintCraft includes, bundles or uses to build its published material
 | `hayro-cmap` 0.1.0 | `assets/cmaps.brotli` | Adobe CMap resources (predefined CJK CMaps) (non-visual data, AGENTS.md §1.1) | Adobe | BSD-3-Clause | https://github.com/adobe-type-tools/cmap-resources (via hayro-cmap) | Character-code mapping tables required to read CJK PDFs. Non-visual data, allowed by AGENTS.md §1.1 |
 | `hayro-interpret` 0.7.0 | `src/font/generated/metrics.rs` | Standard-14 font metrics and encodings (as Rust tables) (non-visual data, AGENTS.md §1.1) | Adobe (Core 14 AFM metrics, PDF specification encodings); tables by The Hayro Authors | MIT OR Apache-2.0 | ISO 32000-2 Annex D; Adobe Core14 AFM files (via vendored hayro-interpret) | Glyph widths and encodings for non-embedded standard fonts. Non-visual data, allowed by AGENTS.md §1.1 |
 
-## Downloaded at build time (22)
+## Downloaded at build time (26)
 
 Fonts are fetched by `cargo xtask demo-pdf` into `target/demo-fonts/`, OCR models by `cargo xtask models` into `assets/models/`; each is verified by SHA-256 and never committed.
 
@@ -292,3 +295,7 @@ Fonts are fetched by `cargo xtask demo-pdf` into `target/demo-fonts/`, OCR model
 | `Inter-Italic[opsz,wght].ttf` | Inter Italic (variable) | The Inter Project Authors (Rasmus Andersson) | OFL-1.1 | https://github.com/google/fonts/tree/9710da1eacb3be272583c3224dcb70f9da6eadbb/ofl/inter | Showcase PDF (cargo xtask demo-pdf) |
 | `text-detection.rten` | Ocrs text detection model | Robert Knight (ocrs-models; trained on HierText, CC-BY-SA-4.0) | CC-BY-SA-4.0 | https://github.com/robertknight/ocrs-models (the models ocrs downloads; model card: https://huggingface.co/robertknight/ocrs, cc-by-sa-4.0) | Scan & OCR: finds words on page images (cargo xtask models) |
 | `text-recognition.rten` | Ocrs text recognition model | Robert Knight (ocrs-models; trained on HierText, CC-BY-SA-4.0) | CC-BY-SA-4.0 | https://github.com/robertknight/ocrs-models (the models ocrs downloads; model card: https://huggingface.co/robertknight/ocrs, cc-by-sa-4.0) | Scan & OCR: reads the words it finds (cargo xtask models) |
+| `rus.traineddata` | Tesseract rus.traineddata model | Tesseract tessdata_fast contributors | Apache-2.0 | tesseract-ocr/tessdata_fast at 87416418657359cb625c412a48b6e1d6d41c29bd | Portable local OCR runtime; downloaded and hash-verified by packaging/fds/package.py |
+| `eng.traineddata` | Tesseract eng.traineddata model | Tesseract tessdata_fast contributors | Apache-2.0 | tesseract-ocr/tessdata_fast at 87416418657359cb625c412a48b6e1d6d41c29bd | Portable local OCR runtime; downloaded and hash-verified by packaging/fds/package.py |
+| `osd.traineddata` | Tesseract osd.traineddata model | Tesseract tessdata_fast contributors | Apache-2.0 | tesseract-ocr/tessdata_fast at 87416418657359cb625c412a48b6e1d6d41c29bd | Portable local OCR runtime; downloaded and hash-verified by packaging/fds/package.py |
+| `pdf.ttf` | Tesseract glyphless PDF font | Tesseract contributors (Google) | Apache-2.0 | https://raw.githubusercontent.com/UB-Mannheim/tesseract/v5.5.3.20260724/tessdata/pdf.ttf | Unmodified Tesseract runtime font, extracted from the pinned installer; no visible artwork |

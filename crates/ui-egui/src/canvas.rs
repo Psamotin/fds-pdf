@@ -887,7 +887,7 @@ pub fn document_area(app: &mut PrintCraftApp, index: usize, ui: &mut egui::Ui) {
     let Some(doc) = app.session.get(app.views[index].id) else { return };
     let info = &doc.info;
     if info.pages.is_empty() {
-        ui.centered_and_justified(|ui| ui.label("This document has no pages."));
+        ui.centered_and_justified(|ui| ui.label(crate::i18n::text("ui.this_document_has_no_pages")));
         return;
     }
     let want_thumbs = app.right == Some(RightPanel::Pages) || app.views[index].organize || app.dialog == Some(crate::Dialog::Print);
@@ -1075,7 +1075,7 @@ pub fn document_area(app: &mut PrintCraftApp, index: usize, ui: &mut egui::Ui) {
                 );
                 let msg = ui.fonts_mut(|f| {
                     f.layout(
-                        format!("This page couldn't be displayed.\n{err}"),
+                        crate::msg!(this_page_couldn_t_be_displayed_value, err = err),
                         theme::regular(12.5),
                         Color32::from_rgb(0x6A, 0x2A, 0x2A),
                         (r.width() - 40.0).max(80.0),
@@ -1103,7 +1103,11 @@ pub fn document_area(app: &mut PrintCraftApp, index: usize, ui: &mut egui::Ui) {
                         wanted.push((i, want_scale, want_tag, None));
                         let now = ui.input(|inp| inp.time);
                         let since = *view.waiting_since.entry(i).or_insert(now);
-                        let msg = if now - since > 6.0 { "Still rendering — this page is unusually complex…" } else { "Rendering…" };
+                        let msg = if now - since > 6.0 {
+                            crate::i18n::text("ui.still_rendering_this_page_is_unusually_complex")
+                        } else {
+                            crate::i18n::text("ui.rendering")
+                        };
                         painter.text(r.center(), Align2::CENTER_CENTER, msg, theme::regular(12.0), t.text_faint);
                     }
                 }
@@ -1366,9 +1370,9 @@ pub fn document_area(app: &mut PrintCraftApp, index: usize, ui: &mut egui::Ui) {
                     if sr.contains(p) {
                         ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
                         let label = match &l.target {
-                            LinkTarget::Page(n) => format!("Go to page {}", info.pages.get(*n).map(|p| p.label.as_str()).unwrap_or("?")),
+                            LinkTarget::Page(n) => crate::msg!(go_to_page_value, info.pages.get(*n).map(|p| p.label.as_str()).unwrap_or("?")),
                             LinkTarget::Uri(u) => u.clone(),
-                            LinkTarget::Other(s) => format!("{s} action"),
+                            LinkTarget::Other(s) => crate::msg!(value_action, s = s),
                         };
                         hover_text = Some((p, label));
                         if resp.clicked() && tool == QuickTool::Select && !consumed {
@@ -1435,35 +1439,35 @@ pub fn document_area(app: &mut PrintCraftApp, index: usize, ui: &mut egui::Ui) {
                             ui.close();
                         }
                     };
-                    ui.menu_button("Align", |ui| {
-                        pick(ui, A::AlignLeft, "Left");
-                        pick(ui, A::AlignRight, "Right");
-                        pick(ui, A::AlignTop, "Top");
-                        pick(ui, A::AlignBottom, "Bottom");
-                        pick(ui, A::AlignCenterV, "Vertically");
-                        pick(ui, A::AlignCenterH, "Horizontally");
+                    ui.menu_button(crate::i18n::text("ui.align"), |ui| {
+                        pick(ui, A::AlignLeft, crate::i18n::text("ui.left"));
+                        pick(ui, A::AlignRight, crate::i18n::text("ui.right"));
+                        pick(ui, A::AlignTop, crate::i18n::text("ui.top"));
+                        pick(ui, A::AlignBottom, crate::i18n::text("ui.bottom"));
+                        pick(ui, A::AlignCenterV, crate::i18n::text("ui.vertically"));
+                        pick(ui, A::AlignCenterH, crate::i18n::text("ui.horizontally"));
                     });
-                    ui.menu_button("Distribute", |ui| {
-                        pick(ui, A::DistributeH, "Horizontally");
-                        pick(ui, A::DistributeV, "Vertically");
+                    ui.menu_button(crate::i18n::text("ui.distribute"), |ui| {
+                        pick(ui, A::DistributeH, crate::i18n::text("ui.horizontally"));
+                        pick(ui, A::DistributeV, crate::i18n::text("ui.vertically"));
                     });
-                    ui.menu_button("Set Fields to Same Size", |ui| {
-                        pick(ui, A::SameHeight, "Height");
-                        pick(ui, A::SameWidth, "Width");
-                        pick(ui, A::SameSize, "Both");
+                    ui.menu_button(crate::i18n::text("ui.set_fields_to_same_size"), |ui| {
+                        pick(ui, A::SameHeight, crate::i18n::text("ui.height_bfe2ec"));
+                        pick(ui, A::SameWidth, crate::i18n::text("ui.width_301994"));
+                        pick(ui, A::SameSize, crate::i18n::text("ui.both"));
                     });
                     ui.separator();
                 }
-                if ui.button("Properties…").clicked() {
+                if ui.button(crate::i18n::text("ui.properties")).clicked() {
                     field_menu = Some(FieldMenu::Properties);
                     ui.close();
                 }
-                if ui.add_enabled(can_modify, egui::Button::new("Duplicate…")).clicked() {
+                if ui.add_enabled(can_modify, egui::Button::new(crate::i18n::text("ui.duplicate"))).clicked() {
                     field_menu = Some(FieldMenu::Duplicate(name.clone()));
                     ui.close();
                 }
                 ui.separator();
-                if ui.add_enabled(can_modify, egui::Button::new("Delete")).clicked() {
+                if ui.add_enabled(can_modify, egui::Button::new(crate::i18n::text("ui.delete"))).clicked() {
                     view.prepare.selected = None;
                     view.pending_edit = Some(printcraft_engine::Edit::DeleteField { name });
                     ui.close();
@@ -1580,7 +1584,7 @@ pub fn document_area(app: &mut PrintCraftApp, index: usize, ui: &mut egui::Ui) {
     match clicked_link {
         Some(LinkTarget::Page(p)) => view.go_to_page(p),
         Some(LinkTarget::Uri(u)) => ui.ctx().open_url(egui::OpenUrl::new_tab(u)),
-        Some(LinkTarget::Other(s)) => app.notify(format!("{s} actions run in the JavaScript engine (M6)")),
+        Some(LinkTarget::Other(s)) => app.notify(crate::msg!(value_actions_run_in_the_javascript_engine_m6, s = s)),
         None => {}
     }
     if tool == QuickTool::Crop && cropped {
@@ -1694,14 +1698,16 @@ fn run_button(app: &mut PrintCraftApp, index: usize, ctx: &egui::Context, name: 
             "PrevPage" => app.views[index].go_to_page(current.saturating_sub(1)),
             "FirstPage" => app.views[index].go_to_page(0),
             "LastPage" => app.views[index].go_to_page(pages.saturating_sub(1)),
-            other => app.notify(format!("{name}: the {other} action isn't supported yet")),
+            other => app.notify(crate::msg!(value_the_value_action_isn_t_supported_yet, name = name, other = other)),
         },
         B::Uri(u) => ctx.open_url(egui::OpenUrl::new_tab(u)),
         B::GoTo(p) => app.views[index].go_to_page(p.min(pages.saturating_sub(1))),
         B::Alert(m) => app.notify(m),
-        B::Submit(url) => {
-            app.notify(format!("{name} submits the form to {url}; PrintCraft doesn't send form data. Save the document to keep your entries."))
-        }
+        B::Submit(url) => app.notify(crate::msg!(
+            value_submits_the_form_to_value_printcraft_doesn_t_send_form_data_save_the_document_to_keep_your_entries,
+            name = name,
+            url = url
+        )),
         B::ImportIcon => app.choose_field_image(name),
         B::Script(js) => {
             let id = app.views[index].id;
@@ -1736,7 +1742,7 @@ fn find_bar(view: &mut DocView, pages: usize, area: Rect, ui: &mut egui::Ui, t: 
                         ui.add(icons::image("search", 16.0, t.text_muted));
                         let edit = egui::TextEdit::singleline(&mut find.query)
                             .id(egui::Id::new("find-input"))
-                            .hint_text("Find text")
+                            .hint_text(crate::i18n::text("ui.find_text"))
                             .desired_width(220.0)
                             .frame(egui::Frame::NONE);
                         let r = ui.add(edit);
@@ -1754,28 +1760,33 @@ fn find_bar(view: &mut DocView, pages: usize, area: Rect, ui: &mut egui::Ui, t: 
                         let status = if find.query.trim().is_empty() {
                             String::new()
                         } else if find.matches.is_empty() {
-                            if searched < pages { format!("Searching… {searched}/{pages}") } else { "No matches".into() }
+                            if searched < pages {
+                                crate::msg!(searching_value_value, searched = searched, pages = pages)
+                            } else {
+                                crate::i18n::text("ui.no_matches_2df01a").into()
+                            }
                         } else {
                             let more = if searched < pages { "+" } else { "" };
                             format!("{} of {}{more}", find.current.map(|c| c + 1).unwrap_or(0), find.matches.len())
                         };
                         ui.label(egui::RichText::new(status).font(theme::regular(12.0)).color(t.text_muted));
-                        if icons::button(ui, "chevron-up", 26.0, false, "Previous (⇧⌘G)").clicked() {
+                        if icons::button(ui, "chevron-up", 26.0, false, crate::i18n::text("ui.previous_g")).clicked() {
                             step = Some(false);
                         }
-                        if icons::button(ui, "chevron-down", 26.0, false, "Next (⌘G)").clicked() {
+                        if icons::button(ui, "chevron-down", 26.0, false, crate::i18n::text("ui.next_g")).clicked() {
                             step = Some(true);
                         }
-                        let opts = icons::button(ui, "settings-2", 26.0, find.case_sensitive || find.whole_words, "Find options");
+                        let opts =
+                            icons::button(ui, "settings-2", 26.0, find.case_sensitive || find.whole_words, crate::i18n::text("ui.find_options"));
                         egui::Popup::menu(&opts).show(|ui| {
-                            let a = ui.checkbox(&mut find.whole_words, "Whole words only").changed();
-                            let b = ui.checkbox(&mut find.case_sensitive, "Case-sensitive").changed();
+                            let a = ui.checkbox(&mut find.whole_words, crate::i18n::text("ui.whole_words_only")).changed();
+                            let b = ui.checkbox(&mut find.case_sensitive, crate::i18n::text("ui.case_sensitive")).changed();
                             if a || b {
                                 // Search again with the new options.
                                 find.case_query.clear();
                             }
                         });
-                        if icons::button(ui, "x", 26.0, false, "Close (Esc)").clicked() {
+                        if icons::button(ui, "x", 26.0, false, crate::i18n::text("ui.close_esc")).clicked() {
                             close = true;
                         }
                     });
@@ -1824,7 +1835,7 @@ fn notices(
                 ui.add(icons::image(icon, 16.0, color));
                 ui.label(egui::RichText::new(text).color(t.text));
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if crate::widgets::pill_button(ui, "Signature panel", false).clicked() {
+                    if crate::widgets::pill_button(ui, crate::i18n::text("ui.signature_panel"), false).clicked() {
                         open = true;
                     }
                 });
@@ -1838,11 +1849,11 @@ fn notices(
     let mut open_security = false;
     let mut open_repairs = false;
     let msg = if secured {
-        Some(("lock", "This document is secured. Some changes are restricted by its security settings.".to_string(), false))
+        Some(("lock", crate::i18n::text("ui.this_document_is_secured_some_changes_are_restricted_by_its_security_settings").to_string(), false))
     } else if !info.fields.is_empty() {
-        Some(("text-cursor-input", format!("This document contains {} interactive form fields.", info.fields.len()), true))
+        Some(("text-cursor-input", crate::msg!(this_document_contains_value_interactive_form_fields, info.fields.len()), true))
     } else if repaired {
-        Some(("bandage", "This file was damaged and has been repaired. Saving keeps the repaired version.".to_string(), false))
+        Some(("bandage", crate::i18n::text("ui.this_file_was_damaged_and_has_been_repaired_saving_keeps_the_repaired_version").to_string(), false))
     } else if !info.warnings.is_empty() {
         Some(("triangle-alert", info.warnings[0].clone(), false))
     } else {
@@ -1854,19 +1865,21 @@ fn notices(
             ui.add(icons::image(icon, 16.0, t.accent_text));
             ui.label(egui::RichText::new(text).color(t.text));
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if icons::button(ui, "x", 22.0, false, "Dismiss").clicked() {
+                if icons::button(ui, "x", 22.0, false, crate::i18n::text("ui.dismiss")).clicked() {
                     view.notice_dismissed = true;
                 }
                 if fields {
-                    let label = if view.highlight_fields { "Hide field highlights" } else { "Highlight fields" };
+                    let label =
+                        if view.highlight_fields { crate::i18n::text("ui.hide_field_highlights") } else { crate::i18n::text("ui.highlight_fields") };
                     if crate::widgets::pill_button(ui, label, view.highlight_fields).clicked() {
                         view.highlight_fields = !view.highlight_fields;
                     }
                 }
-                if secured && crate::widgets::pill_button(ui, "Security settings", false).clicked() {
+                if secured && crate::widgets::pill_button(ui, crate::i18n::text("ui.security_settings"), false).clicked() {
                     open_security = true;
                 }
-                if repaired && !secured && info.fields.is_empty() && crate::widgets::pill_button(ui, "Details", false).clicked() {
+                if repaired && !secured && info.fields.is_empty() && crate::widgets::pill_button(ui, crate::i18n::text("ui.details"), false).clicked()
+                {
                     open_repairs = true;
                 }
             });
@@ -1892,10 +1905,10 @@ fn quick_bar(app: &mut PrintCraftApp, area: Rect, ui: &mut egui::Ui) {
             .show(ui, |ui| {
                 ui.spacing_mut().item_spacing.y = 2.0;
                 ui.vertical(|ui| {
-                    if icons::button(ui, "mouse-pointer-2", 32.0, app.quick_tool == QuickTool::Select, "Select (V)").clicked() {
+                    if icons::button(ui, "mouse-pointer-2", 32.0, app.quick_tool == QuickTool::Select, crate::i18n::text("ui.select_v")).clicked() {
                         app.quick_tool = QuickTool::Select;
                     }
-                    if icons::button(ui, "hand", 32.0, app.quick_tool == QuickTool::Hand, "Hand (H)").clicked() {
+                    if icons::button(ui, "hand", 32.0, app.quick_tool == QuickTool::Hand, crate::i18n::text("ui.hand_h")).clicked() {
                         app.quick_tool = QuickTool::Hand;
                     }
                     // Comment ▸, Highlight ▸, Draw ▸ (Acrobat's comment toolbar groups). Clicking a
@@ -1960,7 +1973,7 @@ fn quick_bar(app: &mut PrintCraftApp, area: Rect, ui: &mut egui::Ui) {
                         if current_fill.is_some() { shown.icon() } else { "pen-line" },
                         32.0,
                         current_fill.is_some(),
-                        "Fill & Sign",
+                        crate::i18n::text("ui.fill_sign"),
                     );
                     let r = resp.rect;
                     let tri = [r.right_bottom() + vec2(-4.0, -4.0), r.right_bottom() + vec2(-9.0, -4.0), r.right_bottom() + vec2(-4.0, -9.0)];
@@ -2027,70 +2040,83 @@ fn organize_toolbar(view: &mut DocView, info: &DocInfo, editable: bool, ui: &mut
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 4.0;
             let label = match view.selected.len() {
-                0 => format!("Page {} of {n}", view.current + 1),
-                1 => "1 page selected".to_string(),
-                k => format!("{k} pages selected"),
+                0 => crate::msg!(page_value_of_value, view.current + 1, n = n),
+                1 => crate::i18n::text("ui.1_page_selected").to_string(),
+                k => crate::msg!(value_pages_selected, k = k),
             };
             // Fixed width so the buttons never shift as the selection text changes.
             ui.add_sized([150.0, 30.0], egui::Label::new(egui::RichText::new(label).font(theme::medium(13.0)).color(t.text_muted)).truncate());
             ui.add_enabled_ui(editable, |ui| {
-                if icons::button(ui, "rotate-ccw", 30.0, false, "Rotate counterclockwise").clicked() {
+                if icons::button(ui, "rotate-ccw", 30.0, false, crate::i18n::text("ui.rotate_counterclockwise")).clicked() {
                     view.pending_edit = Some(Edit::RotatePages { pages: targets.clone(), degrees: -90 });
                 }
-                if icons::button(ui, "rotate-cw", 30.0, false, "Rotate clockwise").clicked() {
+                if icons::button(ui, "rotate-cw", 30.0, false, crate::i18n::text("ui.rotate_clockwise")).clicked() {
                     view.pending_edit = Some(Edit::RotatePages { pages: targets.clone(), degrees: 90 });
                 }
                 let can_delete = targets.len() < n;
-                if ui.add_enabled_ui(can_delete, |ui| icons::button(ui, "trash-2", 30.0, false, "Delete pages (Delete)")).inner.clicked() {
+                if ui
+                    .add_enabled_ui(can_delete, |ui| icons::button(ui, "trash-2", 30.0, false, crate::i18n::text("ui.delete_pages_delete")))
+                    .inner
+                    .clicked()
+                {
                     view.pending_edit = Some(Edit::DeletePages { pages: targets.clone() });
                 }
-                if icons::button(ui, "file-plus", 30.0, false, "Insert a blank page after the selection").clicked() {
+                if icons::button(ui, "file-plus", 30.0, false, crate::i18n::text("ui.insert_a_blank_page_after_the_selection")).clicked() {
                     let c = info.pages[last].crop;
                     let (w, h) = ((c[2] - c[0]).abs().max(1.0) as f64, (c[3] - c[1]).abs().max(1.0) as f64);
                     view.pending_edit = Some(Edit::InsertBlankPage { at: last + 1, width: w, height: h });
                 }
-                if icons::button(ui, "file-input", 30.0, false, "Insert pages from a file…").clicked() {
+                if icons::button(ui, "file-input", 30.0, false, crate::i18n::text("ui.insert_pages_from_a_file")).clicked() {
                     view.pending_action = Some(ViewAction::InsertFromFile);
                 }
-                if icons::button(ui, "file-output", 30.0, false, "Extract pages to a new document").clicked() {
+                if icons::button(ui, "file-output", 30.0, false, crate::i18n::text("ui.extract_pages_to_a_new_document")).clicked() {
                     view.pending_action = Some(ViewAction::Extract);
                 }
-                if icons::button(ui, "scissors", 30.0, false, "Split into files…").clicked() {
+                if icons::button(ui, "scissors", 30.0, false, crate::i18n::text("ui.split_into_files")).clicked() {
                     view.pending_action = Some(ViewAction::Split);
                 }
                 // Select ▸ all, odd, even, landscape, portrait pages (Acrobat's page range
                 // selection in Organize Pages).
-                let sel = icons::button(ui, "list", 30.0, false, "Select pages");
+                let sel = icons::button(ui, "list", 30.0, false, crate::i18n::text("ui.select_pages"));
                 egui::Popup::menu(&sel).show(|ui| {
                     use printcraft_engine::{PageOrientation as O, PageParity as P, filter_pages};
                     let all: Vec<usize> = (0..n).collect();
                     for (label, parity, orient) in [
-                        ("All pages", P::Both, O::Both),
-                        ("Odd pages", P::Odd, O::Both),
-                        ("Even pages", P::Even, O::Both),
-                        ("Landscape pages", P::Both, O::Landscape),
-                        ("Portrait pages", P::Both, O::Portrait),
+                        (crate::i18n::text("ui.all_pages"), P::Both, O::Both),
+                        (crate::i18n::text("ui.odd_pages"), P::Odd, O::Both),
+                        (crate::i18n::text("ui.even_pages"), P::Even, O::Both),
+                        (crate::i18n::text("ui.landscape_pages_1bc7c0"), P::Both, O::Landscape),
+                        (crate::i18n::text("ui.portrait_pages_12a780"), P::Both, O::Portrait),
                     ] {
                         if ui.button(label).clicked() {
                             view.select_pages(&filter_pages(info, &all, parity, orient));
                             ui.close();
                         }
                     }
-                    if ui.button("None").clicked() {
+                    if ui.button(crate::i18n::text("ui.none")).clicked() {
                         view.select_pages(&[]);
                         ui.close();
                     }
                 });
                 ui.add_space(8.0);
-                if ui.add_enabled_ui(first > 0, |ui| icons::button(ui, "chevron-left", 30.0, false, "Move earlier")).inner.clicked() {
+                if ui
+                    .add_enabled_ui(first > 0, |ui| icons::button(ui, "chevron-left", 30.0, false, crate::i18n::text("ui.move_earlier")))
+                    .inner
+                    .clicked()
+                {
                     view.pending_edit = Some(Edit::MovePages { pages: targets.clone(), to: first - 1 });
                 }
-                if ui.add_enabled_ui(last + 1 < n, |ui| icons::button(ui, "chevron-right", 30.0, false, "Move later")).inner.clicked() {
+                if ui
+                    .add_enabled_ui(last + 1 < n, |ui| icons::button(ui, "chevron-right", 30.0, false, crate::i18n::text("ui.move_later")))
+                    .inner
+                    .clicked()
+                {
                     view.pending_edit = Some(Edit::MovePages { pages: targets.clone(), to: first + 1 });
                 }
             });
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if widgets::ghost_button(ui, "x", "Close").on_hover_text("Back to the document").clicked() {
+                if widgets::ghost_button(ui, "x", crate::i18n::text("ui.close")).on_hover_text(crate::i18n::text("ui.back_to_the_document")).clicked()
+                {
                     view.organize = false;
                 }
             });
@@ -2171,7 +2197,7 @@ fn organize_grid(view: &mut DocView, info: &DocInfo, pool: &RenderPool, editable
                     drop = true;
                 }
                 resp.widget_info(|| {
-                    egui::WidgetInfo::selected(egui::WidgetType::Checkbox, true, view.selected.contains(&i), format!("Page {}", p.label))
+                    egui::WidgetInfo::selected(egui::WidgetType::Checkbox, true, view.selected.contains(&i), crate::msg!(page_value_4f9c8e, p.label))
                 });
                 let s = (cell.x - 44.0) / p.width.max(1.0);
                 let size = vec2(p.width * s, p.height * s).min(vec2(cell.x - 44.0, cell.y - 56.0));
@@ -2215,15 +2241,15 @@ fn organize_grid(view: &mut DocView, info: &DocInfo, pool: &RenderPool, editable
                         view.selected = [i].into();
                         view.current = i;
                     }
-                    if ui.add_enabled(editable, egui::Button::new("Cut")).clicked() {
+                    if ui.add_enabled(editable, egui::Button::new(crate::i18n::text("ui.cut"))).clicked() {
                         view.pending_action = Some(ViewAction::CopyPages { cut: true });
                         ui.close();
                     }
-                    if ui.button("Copy").clicked() {
+                    if ui.button(crate::i18n::text("ui.copy")).clicked() {
                         view.pending_action = Some(ViewAction::CopyPages { cut: false });
                         ui.close();
                     }
-                    if ui.add_enabled(editable, egui::Button::new("Paste after")).clicked() {
+                    if ui.add_enabled(editable, egui::Button::new(crate::i18n::text("ui.paste_after"))).clicked() {
                         view.pending_action = Some(ViewAction::PastePages);
                         ui.close();
                     }
@@ -2242,7 +2268,7 @@ fn organize_grid(view: &mut DocView, info: &DocInfo, pool: &RenderPool, editable
                 ui.painter().text(
                     p + vec2(14.0, 14.0),
                     Align2::LEFT_TOP,
-                    format!("{} page{}", pages.len(), if pages.len() == 1 { "" } else { "s" }),
+                    crate::msg!(value_page_value, pages.len(), if pages.len() == 1 { "" } else { "s" }),
                     theme::medium(12.0),
                     t.accent_text,
                 );

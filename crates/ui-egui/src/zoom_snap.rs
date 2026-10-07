@@ -78,7 +78,7 @@ impl PrintCraftApp {
     pub fn fit_visible(&mut self, index: usize) -> Result<(), String> {
         let view = &self.views[index];
         let page = view.current;
-        let doc = self.session.get(view.id).ok_or("no document")?;
+        let doc = self.session.get(view.id).ok_or(crate::i18n::text("ui.no_document"))?;
         let config = RenderConfig { password: doc.password.as_deref().map(std::sync::Arc::from), ..RenderConfig::default() };
         let mut r = printcraft_render::PageRenderer::new(doc.bytes.clone(), config);
         // About 800 px along the longer side is plenty to find the margins.
@@ -112,7 +112,7 @@ impl PrintCraftApp {
     /// clipboard (and keep it in `last_snapshot`).
     pub fn snapshot(&mut self, index: usize, page: usize, view_rect: [f32; 4]) -> Result<(u32, u32), String> {
         let view = &self.views[index];
-        let doc = self.session.get(view.id).ok_or("no document")?;
+        let doc = self.session.get(view.id).ok_or(crate::i18n::text("ui.no_document"))?;
         let ppp = self.ctx.as_ref().map_or(2.0, |c| c.pixels_per_point());
         let scale = (view.zoom * ppp).clamp(0.5, 8.0);
         let tile = Tile {

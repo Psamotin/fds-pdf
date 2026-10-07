@@ -7,3 +7,6 @@ plan/
 .DS_Store
 /fuzz-out
 /assets/models
+
+/.ocr-build-cache
+/packaging/fds/__pycache__/

@@ -28,8 +28,9 @@ pub enum SaveTarget {
 impl PrintCraftApp {
     /// Apply an edit to the active document. Returns `true` on success; failures are shown.
     pub fn apply_edit(&mut self, edit: Edit) -> bool {
+        let _locale = crate::i18n::scope(self.language);
         let Some((i, id)) = self.active_ids() else { return false };
-        let label = edit.label();
+        let label = self.language.command_label(&edit.label());
         match self.session.apply(id, edit.clone()) {
             Ok(()) => {
                 let Some(doc) = self.session.get(id) else { return true };
@@ -66,30 +67,34 @@ impl PrintCraftApp {
                 true
             }
             Err(e) => {
-                self.notify(format!("{label} failed: {e}"));
+                self.notify(crate::msg!(value_failed_value, label = label, e = e));
                 false
             }
         }
     }
 
     pub fn undo(&mut self) {
+        let _locale = crate::i18n::scope(self.language);
         self.history_step(true);
     }
 
     pub fn redo(&mut self) {
+        let _locale = crate::i18n::scope(self.language);
         self.history_step(false);
     }
 
     fn history_step(&mut self, undo: bool) {
+        let _locale = crate::i18n::scope(self.language);
         let Some((i, id)) = self.active_ids() else { return };
         let result = if undo { self.session.undo(id) } else { self.session.redo(id) };
         match result {
             Ok(label) => {
+                let label = self.language.command_label(&label);
                 if let Some(doc) = self.session.get(id) {
                     self.views[i].document_changed(&doc.info);
                 }
                 self.views[i].comments.selected = None;
-                self.notify(format!("{} {label}", if undo { "Undid" } else { "Redid" }));
+                self.notify(format!("{} {label}", if undo { crate::i18n::text("ui.undid") } else { crate::i18n::text("ui.redid") }));
             }
             Err(e) => self.notify(e.to_string()),
         }
@@ -97,6 +102,7 @@ impl PrintCraftApp {
 
     /// Apply any edit a view queued this frame (organize toolbar, keys).
     pub(crate) fn process_pending_edits(&mut self) {
+        let _locale = crate::i18n::scope(self.language);
         let Some(i) = self.active else { return };
         if let Some(edit) = self.views.get_mut(i).and_then(|v| v.pending_edit.take()) {
             self.apply_edit(edit);
@@ -114,26 +120,28 @@ impl PrintCraftApp {
     /// Organize ▸ Copy / Cut: remember the selected pages (the document as it is now); Cut also
     /// deletes them (one page always stays).
     pub fn copy_pages(&mut self, cut: bool) {
+        let _locale = crate::i18n::scope(self.language);
         let Some((i, id)) = self.active_ids() else { return };
         let Some(doc) = self.session.get(id) else { return };
         let pages = self.views[i].target_pages();
         let n = doc.info.pages.len();
         if cut && pages.len() >= n {
-            self.notify("A document needs at least one page: copy instead");
+            self.notify(crate::i18n::text("ui.a_document_needs_at_least_one_page_copy_instead"));
             return;
         }
         self.page_clipboard = Some(crate::PageClip { name: doc.name.clone(), bytes: doc.bytes.clone(), pages: pages.clone() });
         if cut {
             self.apply_edit(Edit::DeletePages { pages: pages.clone() });
         }
-        let what = if pages.len() == 1 { "1 page".to_string() } else { format!("{} pages", pages.len()) };
-        self.notify(format!("{} {what}", if cut { "Cut" } else { "Copied" }));
+        let what = if pages.len() == 1 { crate::i18n::text("ui.1_page").to_string() } else { crate::msg!(value_pages, pages.len()) };
+        self.notify(format!("{} {what}", if cut { crate::i18n::text("ui.cut") } else { crate::i18n::text("ui.copied") }));
     }
 
     /// Organize ▸ Paste: insert the copied pages after the selection (or the current page).
     pub fn paste_pages(&mut self) {
+        let _locale = crate::i18n::scope(self.language);
         let Some(clip) = self.page_clipboard.clone() else {
-            self.notify("Copy or cut pages first");
+            self.notify(crate::i18n::text("ui.copy_or_cut_pages_first"));
             return;
         };
         let Some(i) = self.active else { return };
@@ -146,6 +154,7 @@ impl PrintCraftApp {
 
     /// Save the active document. Returns `true` if it was written.
     pub fn save_active(&mut self, target: SaveTarget) -> bool {
+        let _locale = crate::i18n::scope(self.language);
         match self.active {
             Some(i) => self.save_view(i, target),
             None => false,
@@ -154,13 +163,14 @@ impl PrintCraftApp {
 
     /// Save the document shown in tab `index`. Returns `true` if it was written.
     pub fn save_view(&mut self, index: usize, target: SaveTarget) -> bool {
+        let _locale = crate::i18n::scope(self.language);
         let Some(id) = self.views.get(index).map(|v| v.id) else { return false };
         let Some(doc) = self.session.get(id) else { return false };
         let (name, path) = (doc.name.clone(), doc.path.clone());
         let bytes = match self.session.save_bytes(id) {
             Ok(b) => b,
             Err(e) => {
-                self.notify(format!("Couldn't save {name}: {e}"));
+                self.notify(crate::msg!(couldn_t_save_value_value, name = name, e = e));
                 return false;
             }
         };
@@ -173,7 +183,7 @@ impl PrintCraftApp {
         {
             let Some(dest) = destination else { return false };
             if let Err(e) = write_atomically(&dest, &bytes) {
-                self.notify(format!("Couldn't save {dest}: {e}"));
+                self.notify(crate::msg!(couldn_t_save_value_value_b552d6, dest = dest, e = e));
                 return false;
             }
             match self.session.mark_saved(id, bytes, Some(dest.clone())) {
@@ -182,11 +192,11 @@ impl PrintCraftApp {
                     if let Some(doc) = self.session.get(id) {
                         self.views[index].document_changed(&doc.info);
                     }
-                    self.notify(format!("Saved {}", short_name(&dest)));
+                    self.notify(crate::msg!(saved_value, short_name(&dest)));
                     true
                 }
                 Err(e) => {
-                    self.notify(format!("Saved, but reopening failed: {e}"));
+                    self.notify(crate::msg!(saved_but_reopening_failed_value, e = e));
                     false
                 }
             }
@@ -200,11 +210,11 @@ impl PrintCraftApp {
                     if let Some(doc) = self.session.get(id) {
                         self.views[index].document_changed(&doc.info);
                     }
-                    self.notify(format!("Downloaded {name}"));
+                    self.notify(crate::msg!(downloaded_value, name = name));
                     true
                 }
                 Err(e) => {
-                    self.notify(format!("Couldn't download {name}: {e}"));
+                    self.notify(crate::msg!(couldn_t_download_value_value, name = name, e = e));
                     false
                 }
             }
@@ -213,17 +223,20 @@ impl PrintCraftApp {
 
     #[cfg(not(target_arch = "wasm32"))]
     fn ask_save_path(&self, name: &str) -> Option<String> {
+        let _locale = crate::i18n::scope(self.language);
         let name = if name.to_ascii_lowercase().ends_with(".pdf") { name.to_string() } else { format!("{name}.pdf") };
         rfd::FileDialog::new().add_filter("PDF", &["pdf"]).set_file_name(name).save_file().map(|p| p.to_string_lossy().into_owned())
     }
 
     #[cfg(target_arch = "wasm32")]
     fn ask_save_path(&self, _name: &str) -> Option<String> {
+        let _locale = crate::i18n::scope(self.language);
         None // browsers download instead
     }
 
     /// Close a tab, asking first if it has unsaved changes.
     pub fn request_close_tab(&mut self, index: usize) {
+        let _locale = crate::i18n::scope(self.language);
         let dirty = self.views.get(index).and_then(|v| self.session.get(v.id)).is_some_and(|d| d.dirty);
         if dirty {
             self.close_request = Some(CloseRequest::Tab(index));
@@ -234,6 +247,7 @@ impl PrintCraftApp {
 
     /// File ▸ Close all: clean documents close at once; each one with unsaved changes asks.
     pub fn close_all(&mut self) {
+        let _locale = crate::i18n::scope(self.language);
         for i in (0..self.views.len()).rev() {
             if !self.session.get(self.views[i].id).is_some_and(|d| d.dirty) {
                 self.close_tab(i);
@@ -246,6 +260,7 @@ impl PrintCraftApp {
 
     /// File ▸ Revert (after the confirmation).
     pub fn revert_active(&mut self) {
+        let _locale = crate::i18n::scope(self.language);
         let Some((_, id)) = self.active_ids() else { return };
         match self.session.revert(id) {
             Ok(()) => {
@@ -254,7 +269,7 @@ impl PrintCraftApp {
                 {
                     self.views[i].document_changed(&d.info);
                 }
-                self.notify("Reverted to the last saved version");
+                self.notify(crate::i18n::text("ui.reverted_to_the_last_saved_version"));
             }
             Err(e) => self.notify(e.to_string()),
         }
@@ -262,11 +277,13 @@ impl PrintCraftApp {
 
     /// The first tab with unsaved changes.
     pub fn first_dirty(&self) -> Option<usize> {
+        let _locale = crate::i18n::scope(self.language);
         self.views.iter().position(|v| self.session.get(v.id).is_some_and(|d| d.dirty))
     }
 
     /// Answer the save prompt: `Some(true)` save, `Some(false)` discard, `None` cancel.
     pub fn resolve_close(&mut self, ctx: &egui::Context, choice: Option<bool>) {
+        let _locale = crate::i18n::scope(self.language);
         let Some(req) = self.close_request.take() else { return };
         let index = match req {
             CloseRequest::Tab(i) => i,
@@ -300,12 +317,14 @@ impl PrintCraftApp {
     }
 
     fn quit(&mut self, ctx: &egui::Context) {
+        let _locale = crate::i18n::scope(self.language);
         self.allow_quit = true;
         ctx.send_viewport_cmd(egui::ViewportCommand::Close);
     }
 
     /// Intercept window close while documents have unsaved changes.
     pub(crate) fn guard_quit(&mut self, ctx: &egui::Context) {
+        let _locale = crate::i18n::scope(self.language);
         if !ctx.input(|i| i.viewport().close_requested()) {
             return;
         }
@@ -370,7 +389,7 @@ pub(crate) fn download(name: &str, bytes: &[u8]) -> Result<(), String> {
     opts.set_type("application/pdf");
     let blob = web_sys::Blob::new_with_u8_array_sequence_and_options(&parts, &opts).map_err(err)?;
     let url = web_sys::Url::create_object_url_with_blob(&blob).map_err(err)?;
-    let document = web_sys::window().and_then(|w| w.document()).ok_or("no document")?;
+    let document = web_sys::window().and_then(|w| w.document()).ok_or(crate::i18n::text("ui.no_document"))?;
     let a: web_sys::HtmlAnchorElement = document.create_element("a").map_err(err)?.dyn_into().map_err(|_| "anchor")?;
     a.set_href(&url);
     a.set_download(name);
@@ -382,6 +401,7 @@ pub(crate) fn download(name: &str, bytes: &[u8]) -> Result<(), String> {
 impl PrintCraftApp {
     /// Carry out a Bookmarks-panel action as an undoable edit.
     pub fn bookmark_action(&mut self, action: crate::panels::BmAction) {
+        let _locale = crate::i18n::scope(self.language);
         use crate::panels::BmAction as A;
         let Some((i, id)) = self.active_ids() else { return };
         let current = self.views[i].current;
@@ -389,9 +409,9 @@ impl PrintCraftApp {
         let edit = match action {
             A::New => {
                 let n = self.session.get(id).map_or(0, |d| d.info.outline.len());
-                self.apply_edit(Edit::AddBookmark { parent: vec![], index: n, title: "Untitled".into(), page: current });
+                self.apply_edit(Edit::AddBookmark { parent: vec![], index: n, title: crate::i18n::text("ui.untitled").into(), page: current });
                 // Like Acrobat: the new bookmark starts in rename mode.
-                self.bookmark_rename = Some((vec![n], "Untitled".into()));
+                self.bookmark_rename = Some((vec![n], crate::i18n::text("ui.untitled").into()));
                 self.right = Some(crate::RightPanel::Bookmarks);
                 return;
             }
