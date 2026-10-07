@@ -28,12 +28,12 @@ for item in manifest['models']:
 env = {k: v for k, v in os.environ.items() if k.upper() not in {'PATH', 'PYTHONPATH', 'PYTHONHOME', 'TESSDATA_PREFIX'}}
 env.update(PATH=os.pathsep.join([str(tess.parent), str(python.parent), str(python.parent / 'Scripts'),
                                 str(Path(os.environ['SystemRoot']) / 'System32')]),
-           TESSDATA_PREFIX=str(tess.parent / 'tessdata'), PYTHONNOUSERSITE='1', PYTHONUTF8='1')
+           TESSDATA_PREFIX='tessdata', PYTHONNOUSERSITE='1', PYTHONUTF8='1')
 flags = subprocess.CREATE_NO_WINDOW
 
 def run(*args):
     result = subprocess.run([str(a) for a in args], env=env, capture_output=True, text=True, encoding='utf-8',
-                            errors='replace', timeout=240, creationflags=flags)
+                            errors='replace', timeout=240, creationflags=flags, cwd=tess.parent)
     if result.returncode:
         raise RuntimeError(f'Runtime smoke failed ({result.returncode}): {result.stderr}')
     return result.stdout + result.stderr

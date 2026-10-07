@@ -57,6 +57,11 @@ python.exe -I -m ocrmypdf --language rus+eng --mode skip --rotate-pages --deskew
 
 `-I` и относительный `python313._pth` изолируют Python. PATH и TESSDATA_PREFIX
 задаются только дочернему процессу; глобальное окружение не меняется.
+Рабочий каталог дочерних процессов — `OCR/Tesseract-OCR`, вычисленный от exe.
+`TESSDATA_PREFIX=tessdata` разрешается относительно него в тот же каталог моделей:
+Windows CRT закреплённого Tesseract теряет кириллицу в абсолютном getenv-пути.
+Перед сборкой Windows preflight проверяет версии/hashes и rus/eng/osd в папке
+с кириллицей, без host PATH. Полный smoke с реальным OCR остаётся обязательным.
 CREATE_NO_WINDOW скрывает непосредственные дочерние консоли. Дополнительный
 `sitecustomize.py` в закреплённом Python runtime включает этот флаг для
 _CreateProcess дочерних процессов Python, включая Tesseract и multiprocessing;

@@ -88,7 +88,9 @@ impl Runtime {
         let path = std::env::join_paths(paths).map_err(io_failure)?;
         Ok(vec![
             ("PATH".into(), path),
-            ("TESSDATA_PREFIX".into(), self.tessdata.as_os_str().to_owned()),
+            // The pinned Windows CRT loses non-ACP characters in getenv. The fixed
+            // child working directory resolves this ASCII value to the same model folder.
+            ("TESSDATA_PREFIX".into(), "tessdata".into()),
             ("PYTHONNOUSERSITE".into(), "1".into()),
             ("PYTHONUTF8".into(), "1".into()),
             ("FDS_OCR_HIDE_CHILDREN".into(), "1".into()),
@@ -395,7 +397,9 @@ mod tests {
         assert_eq!(paths[0], runtime.root.join("Tesseract-OCR"));
         assert_eq!(paths[1], runtime.root.join("Python"));
         assert_eq!(paths[2], runtime.root.join("Python/Scripts"));
-        assert_eq!(spec.environment.iter().find(|(k, _)| k == "TESSDATA_PREFIX").unwrap().1, runtime.tessdata.as_os_str());
+        let prefix = &spec.environment.iter().find(|(k, _)| k == "TESSDATA_PREFIX").unwrap().1;
+        assert_eq!(prefix, "tessdata");
+        assert_eq!(spec.working_directory.as_ref().unwrap().join(prefix), runtime.tessdata);
         let spec =
             runtime.command_spec(&folder.path().join("in.pdf"), &folder.path().join("out.pdf"), Options { rotate: false, deskew: false }).unwrap();
         assert!(!spec.arguments.contains(&OsString::from("--rotate-pages")) && !spec.arguments.contains(&OsString::from("--deskew")));

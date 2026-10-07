@@ -41,6 +41,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Preflight pinned Tesseract models in a Unicode directory
+        shell: pwsh
+        run: |
+          python packaging/fds/preflight.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Install Rust 1.95
         uses: dtolnay/rust-toolchain@master
         with:
