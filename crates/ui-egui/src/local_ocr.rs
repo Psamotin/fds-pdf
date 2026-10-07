@@ -10,7 +10,7 @@ use std::time::{Duration, Instant};
 
 pub const PYTHON_VERSION: &str = "3.13.15";
 pub const OCRMY_PDF_VERSION: &str = "17.4.0";
-pub const TESSERACT_VERSION: &str = "5.5.3";
+pub const TESSERACT_VERSION: &str = "5.5.3.20260724";
 pub const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -135,7 +135,7 @@ impl Runtime {
             let tess = self.spec(self.tesseract.clone(), vec![argument.into()])?;
             let output = execute(&tess, &cancelled, Some(Duration::from_secs(30))).map_err(|e| Failure::new(FailureKind::Runtime, e.details))?;
             let valid = if argument == "--version" {
-                output.contains(&format!("tesseract {TESSERACT_VERSION}"))
+                tesseract_banner_matches(&output)
             } else {
                 ["rus", "eng", "osd"].iter().all(|language| output.lines().any(|line| line.trim() == *language))
             };
@@ -341,9 +341,20 @@ impl Drop for Cancellation {
     }
 }
 
+fn tesseract_banner_matches(output: &str) -> bool {
+    output.lines().next().is_some_and(|line| line.trim() == format!("tesseract v{TESSERACT_VERSION}"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn pinned_windows_tesseract_banner_requires_exact_build() {
+        assert!(tesseract_banner_matches("tesseract v5.5.3.20260724\n leptonica-1.87.0\n"));
+        for banner in ["tesseract 5.5.3", "tesseract v5.5.3.20260723", "tesseract v5.5.3.202607240", "other tesseract v5.5.3.20260724"] {
+            assert!(!tesseract_banner_matches(banner), "{banner}");
+        }
+    }
     #[test]
     fn packaged_command_uses_relative_runtime_and_exact_profile_without_mutating_environment() {
         let folder = tempfile::tempdir().unwrap();

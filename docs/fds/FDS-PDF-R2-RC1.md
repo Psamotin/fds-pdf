@@ -98,6 +98,8 @@ BUILD_LICENSES и gzip с нестандартным внутренним име
 - OCRmyPDF 17.4.0: PyPI wheel и закреплённая dependency closure.
 - Tesseract 5.5.3.20260724: официальный release tesseract-ocr/tesseract,
   SHA-256 `bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4`.
+  Windows version banner — `tesseract v5.5.3.20260724`; адаптер и smoke
+  сравнивают полную строку, включая дату сборки.
   Installer не запускается: 7-Zip извлекает проверенный runtime dependency
   closure без installer plugins, training tools и лишних библиотек GTK/Pango.
 - Модели rus/eng/osd: tessdata_fast revision
@@ -117,7 +119,7 @@ GCC Runtime Library Exception также сохранено. Исходный Ru
 
 - `cargo fmt --all -- --check`;
 - `cargo check --workspace --locked`;
-- `cargo test --workspace --locked`: 713 PASS, 0 FAIL, 4 ignored;
+- `cargo test --workspace --locked`: 714 PASS, 0 FAIL, 4 ignored;
 - `cargo clippy --locked -p printcraft-ui-egui -p printcraft --all-targets --no-deps -- -D warnings`;
 - `cargo build --release --locked -p printcraft`;
 - `cargo check --locked -p printcraft-ui-egui --target wasm32-unknown-unknown`;

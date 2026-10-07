@@ -46,7 +46,9 @@ probe = subprocess.run([str(python), '-I', '-c', console_probe], env=env, captur
 assert probe.returncode == 0, f'Hidden child policy failed: {probe.stderr!r}'
 assert '3.13.15' in run(python, '--version')
 assert '17.4.0' in run(python, '-I', '-m', 'ocrmypdf', '--version')
-assert 'tesseract 5.5.3' in run(tess, '--version').lower()
+tesseract_banner = run(tess, '--version')
+print(tesseract_banner, flush=True)
+assert tesseract_banner.splitlines()[0].strip() == 'tesseract v' + manifest['tesseract']['version'], repr(tesseract_banner)
 assert {x.strip() for x in run(tess, '--list-langs').splitlines()} >= {'rus', 'eng', 'osd'}
 import ctypes
 leptonica = ctypes.CDLL(str(tess.parent / 'libleptonica-6.dll'))
