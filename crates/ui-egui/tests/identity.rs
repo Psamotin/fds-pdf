@@ -40,13 +40,22 @@ fn the_identity_name_signs_new_comments_and_is_remembered() {
     // New comments carry it.
     h.state_mut().set_option("dialog", "none").unwrap();
     h.state_mut().views[0].select_text(0, 4, 8);
+    // The fixture bypasses mouse selection, so wait for the background text layer
+    // a user would already have before applying markup. Frame counts race on Windows.
+    let text_deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    while h.state().views[0].selected_text().is_none() && std::time::Instant::now() < text_deadline {
+        h.run_steps(1);
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    assert!(h.state().views[0].selected_text().is_some(), "background text must be ready before markup");
     assert!(h.state_mut().execute("comment.highlight"));
     // Wait for the edit to land in the document (it applies on a later frame).
     let author = |h: &Harness<'static, PrintCraftApp>| {
         let doc = h.state().session.get(h.state().views[0].id).unwrap();
         doc.info.annotations.first().and_then(|a| a.author.clone())
     };
-    for _ in 0..100 {
+    let edit_deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    while std::time::Instant::now() < edit_deadline {
         if author(&h).is_some() {
             break;
         }
