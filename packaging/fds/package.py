@@ -5,10 +5,11 @@ import hashlib
 import json
 import os
 import re
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import shutil
 import subprocess
 import tempfile
+import tarfile
 import urllib.request
 import zipfile
 
@@ -55,18 +56,50 @@ def copy(source, target):
 
 
 def notices_from_archive(archive, destination, sevenzip):
-    """Sources are preserved intact; also expose their licence texts without unpacking code in the app."""
-    with tempfile.TemporaryDirectory(prefix='fds-source-notices-') as temporary:
-        root = Path(temporary)
-        run(sevenzip, 'x', '-y', f'-o{root}', archive, stdout=subprocess.DEVNULL)
-        # 7-Zip decompresses tar.gz/xz/lz to a tar, then extracts the tar.
-        for tar in list(root.rglob('*.tar')):
-            run(sevenzip, 'x', '-y', f'-o{root / "source"}', tar, stdout=subprocess.DEVNULL)
-        for path in root.rglob('*'):
-            if path.is_file() and re.search(r'(^|[-_.])(LICENSE|LICENCE|COPYING|COPYRIGHT|NOTICE|AUTHORS)([-_.]|$)', path.name, re.IGNORECASE):
-                copy(path, destination / path.relative_to(root))
-        if not destination.exists():
-            raise RuntimeError(f'No licence/copyright notice found in {archive.name}')
+    """Read licence files directly; gzip filenames and extractor versions cannot change discovery."""
+    def is_notice(path):
+        return any(re.search(r'(^|[-_.])(LICENSES?|LICENCES?|COPYING|COPYRIGHT|NOTICE|AUTHORS)([-_.]|$)',
+                             part, re.IGNORECASE) for part in path.parts)
+
+    def write_notice(name, stream):
+        path = PurePosixPath(name)
+        if path.is_absolute() or '..' in path.parts or any(':' in part or '\\' in part for part in path.parts):
+            raise RuntimeError(f'Unsafe source archive path: {name}')
+        if is_notice(path):
+            target = destination.joinpath(*path.parts)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with target.open('wb') as output:
+                shutil.copyfileobj(stream, output)
+            return 1
+        return 0
+
+    def read_tar(path):
+        count = 0
+        with tarfile.open(path, 'r:*') as source:
+            for member in source:
+                if member.isfile() and is_notice(PurePosixPath(member.name)):
+                    with source.extractfile(member) as stream:
+                        count += write_notice(member.name, stream)
+        return count
+
+    if zipfile.is_zipfile(archive):
+        count = 0
+        with zipfile.ZipFile(archive) as source:
+            for member in source.infolist():
+                if not member.is_dir() and is_notice(PurePosixPath(member.filename)):
+                    with source.open(member) as stream:
+                        count += write_notice(member.filename, stream)
+    elif archive.name.endswith('.tar.lz'):
+        # stdlib has no lzip decoder; use 7-Zip only to stream the outer compression.
+        with tempfile.TemporaryDirectory(prefix='fds-source-notices-') as temporary:
+            tar = Path(temporary) / 'source.tar'
+            with tar.open('wb') as output:
+                run(sevenzip, 'x', '-so', archive, stdout=output)
+            count = read_tar(tar)
+    else:
+        count = read_tar(archive)
+    if not count:
+        raise RuntimeError(f'No licence/copyright notice found in {archive.name}')
 
 
 def package(args):
