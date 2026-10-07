@@ -146,7 +146,9 @@ Windows workflow `.github/workflows/fds-windows-build.yml` дополнител�
 3. Переносит комплект в путь с кириллицей/пробелами, изолирует host PATH.
 4. Проверяет версии, модели, import и searchable PDF на синтетическом скане;
    SHA-256 исходного PDF должен остаться прежним.
-5. Проверяет ProductVersion exe и Tesseract; только затем загружает
+5. Проверяет ProductName/ProductVersion ФДС exe и SHA-256 Tesseract; у
+   официального tesseract.exe отсутствует VERSIONINFO, поэтому его версия
+   проверяется полным CLI banner в smoke. Только затем загружает
    `FDS-PDF-0.2.0-fds.1-rc1-windows-x64`: ZIP Actions содержит папку комплекта
    и build-report.json, без вложенного ZIP. Размер/digest загруженного artifact
    записываются в summary; portable_zip_* в report относятся к отдельному

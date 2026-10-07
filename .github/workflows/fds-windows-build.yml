@@ -91,8 +91,12 @@ jobs:
           $exe = Get-Item "$out/FDS-PDF.exe"
           if ($exe.VersionInfo.ProductName -ne 'ФДС ПДФ') { throw 'Incorrect Windows product name' }
           if ($exe.VersionInfo.ProductVersion -ne $env:FDS_VERSION) { throw 'Incorrect Windows product version' }
-          $tess = Get-Item "$out/OCR/Tesseract-OCR/tesseract.exe"
-          if ($tess.VersionInfo.ProductVersion -ne '5.5.3.20260724') { throw 'Incorrect pinned Tesseract binary version' }
+          # The official executable has no VERSIONINFO; verify its immutable hash.
+          # smoke.py separately checks its exact native CLI version/date.
+          $runtime = Get-Content 'packaging/fds/runtime-lock.json' -Raw | ConvertFrom-Json
+          $pinned = $runtime.tesseract.files | Where-Object { $_.filename -eq 'tesseract.exe' }
+          $hash = Get-FileHash "$out/OCR/Tesseract-OCR/tesseract.exe" -Algorithm SHA256
+          if ($hash.Hash -ne $pinned.sha256.ToUpperInvariant()) { throw 'Incorrect pinned Tesseract binary checksum' }
 
       - name: Upload Windows release candidate
         id: upload
